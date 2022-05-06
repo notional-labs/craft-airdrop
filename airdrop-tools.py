@@ -65,17 +65,17 @@ def main():
     }
     
     # Downloads files to exports dir if not already there
-    # for file in getExportsOnWebsiteIndex():
-    #     downloadAndDecompressXZFileFromServer(fileName=file)
+    for file in getExportsOnWebsiteIndex():
+        downloadAndDecompressXZFileFromServer(fileName=file)
 
 
     # save_staked_amounts(files['craft'], output['craft'])
-    # save_staked_amounts(files['osmosis'], output['osmosis'])
+    save_staked_amounts(files['osmosis'], output['osmosis'])
     # save_staked_amounts(files['juno'], output['juno'])
 
 
     # Saves an export & all account balances INCLUDING ibc/ tokens if you so choose
-    # save_balances(files['osmosis'], 'output/osmosis_balances.json', ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True)
+    save_balances(files['osmosis'], 'output/osmosis_balances.json', ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True)
     fairdrop_for_osmosis_pools()
 
 
