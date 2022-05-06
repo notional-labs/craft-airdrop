@@ -28,7 +28,7 @@ Ensure you edit airdrop-tools.py main() function to point to the correct files
 ```
 python3 -m pip install ijson requests
 
-# Exit main in airdrop-tools.py to your liking
+# Edit main in airdrop-tools.py to your liking, comment out lines
 
 # Ensure you are in the project directory, then:
 python3 airdrop-tools.py
