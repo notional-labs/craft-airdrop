@@ -41,6 +41,12 @@ for key in sections:
     if sections[key].endswith('.item') == False:
         sections[key] += '.item'
 
+# create new folders if not already
+if not os.path.exists("exports"):
+    os.mkdir("exports")
+if not os.path.exists("output"):
+    os.mkdir("output")
+
 def main():
     files = {
         "craft": "exports/craft_export.json",
