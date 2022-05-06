@@ -1,0 +1,4 @@
+# Too large of files
+*/__pycache__/*
+exports/*
+output/*
