@@ -16,8 +16,6 @@ Where staked amount is in the udenom. Divide by 1_000_000 to get the human reada
 
 Example:
 osmosisd export 3500001 2> osmosis_export.json
-# osmosisd export-derive-balances osmosis_export.json balances.json --breakdown-by-pool-ids 1,561 - not neeeded anymore
-
 # Done Automatically:
 Compress:
     xz appd_export.json

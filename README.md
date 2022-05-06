@@ -10,8 +10,12 @@ Snapshot exports found at: https://reece.sh/exports/
 
 ## Example
 ```
-osmosisd export 3500001 2> osmosis_state_export.json
-craftd export 100000 2> craft_state_export.json
+osmosisd export 3500001 2> osmosis_export.json
+craftd export 100000 2> craft_export.json
+
+# These can be placed on an nginx server for easy download. Use the following command to generate an index.html file:
+#   apt install tree; tree -H '.' -L 1 --noreport --charset utf-8 -P "*.xz" -o index.html 
+# After doing so, you can easily download all the files with the main function :)
 ```
 
 From here you can put the files into the state_exports folder
