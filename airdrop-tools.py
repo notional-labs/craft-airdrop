@@ -48,12 +48,12 @@ if not os.path.exists("output"):
     os.mkdir("output")
 
 def main():
-    files = {
-        "craft": "exports/craft_export.json",
+    files = { # hard for my pc to handle so only doing osmosis right now        
+        # "craft": "exports/craft_export.json",
         "osmosis": "exports/osmosis_export.json",
-        "akash": "exports/akash_export.json",
-        "cosmos": "exports/cosmos_export.json",
-        "juno": "exports/juno_export.json",
+        # "akash": "exports/akash_export.json",
+        # "cosmos": "exports/cosmos_export.json",
+        # "juno": "exports/juno_export.json",
     }
 
     output = {
@@ -143,7 +143,7 @@ def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
             bonus = utils.GENESIS_VALIDATORS[valaddr] # 'akashvaloper1lxh0u07haj646pt9e0l2l4qc3d8htfx5kk698d': 1.2,
     
         if bonus > 1.0:
-            print(f"{delegator} got a bonus of {bonus}x for delegating to genesis validator {valaddr}")
+            print(f"{delegator} would get a bonus of {bonus}x for delegating to genesis validator {valaddr}")
 
         output += f"{delegator} {valaddr} {float(stake)}\n"
 
