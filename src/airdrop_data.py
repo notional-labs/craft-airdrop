@@ -1,15 +1,5 @@
 
 
-NETWORKS = {  
-    # https://github.com/Reecepbcups/CosmosGovernanceProposalBot/blob/main/GovBot.py
-    # Change to use same name as opperator addresses
-    'dig': "https://api-1-dig.notional.ventures", 
-    'osmo': "https://lcd-osmosis.blockapsis.com",
-    'atom': "https://api.cosmos.network",
-    'akash': "https://akash.api.ping.pub",
-    'juno': "https://lcd-juno.itastakers.com",
-}
-
 AIRDROP_DISTRIBUTIONS = { 
     # TODO: NOT REAL VALUES, FOR TESTING ONLY
     # https://github.com/notional-labs/craft/issues/17

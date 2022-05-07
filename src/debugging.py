@@ -1,3 +1,4 @@
+import ijson
 def debug_get_keys(fn, stopLoopIter=10_000):
     '''
     Gets all json keys from a file up to a select height (useful if the file is large like osmosis)

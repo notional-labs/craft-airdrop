@@ -6,7 +6,7 @@ import os
 
 import src.utils as utils
 
-from airdrop_data import NETWORKS, AIRDROP_DISTRIBUTIONS, AIRDROP_RATES, \
+from src.airdrop_data import AIRDROP_DISTRIBUTIONS, AIRDROP_RATES, \
     BLACKLISTED_CENTRAL_EXCHANGES, GENESIS_VALIDATORS
 
 '''
