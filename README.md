@@ -33,3 +33,44 @@ python3 -m pip install ijson requests
 # Ensure you are in the project directory, then:
 python3 airdrop-tools.py
 ```
+
+
+</br>
+
+# Notes
+##  Group 1: Stakers - %XX
+Anyone Staking: (Exclude exchanges)
+ - Akash
+ - Osmosis
+ - Cosmos
+ - Juno
+
+<br/>
+
+##  Group 2: Osmo LP'ers: - %XX
+Anyone LP'ing:
+ - "gamm/pool/1"   # ATOM/OSMO
+ - "gamm/pool/561" # OSMO/LUNA
+
+<br/>
+
+##  Group 3: Validators running ATOM Relayers: - %XX
+(ATOM_RELAYERS dict in src -> airdrop_data.py)
+
+Confirm the following & add in:
+https://twitter.com/SignalSGNL/status/1521384507844091910?s=20&t=7Krj2BWrg5a3N8dHxmTEKA
+
+##  Group 4: Chandra Station Delegators: - %XX
+src -> airdrop_data.py -> GENESIS_VALIDATORS have all Chandra addresses.
+
+##  Group 5: ION Holders & ION LPers: - %XX
+airdrop-tools.py -> save_balances handles this.
+Need to add saving ION LP pool ids as well 
+to balance.
+
+##  Group 6: CRAFT Genesis Set: - %XX
+src -> airdrop_data.py -> GENESIS_VALIDATORS have all Chandra addresses.
+Chandra is apart of this one on top of Group 4 yes?
+
+##  Group 7: CRAFT BETA: - %X
+All who participated in the Craft Economy Beta
