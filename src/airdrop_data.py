@@ -18,12 +18,19 @@ AIRDROP_RATES = { # TODO: NOT REAL VALUES, FOR TESTING ONLY
 }
 
 ATOM_RELAYERS = {
+    # https://twitter.com/SignalSGNL/status/1521384507844091910?s=20&t=7Krj2BWrg5a3N8dHxmTEKA
     "cosmosvaloper130mdu9a0etmeuw52qfxk73pn0ga6gawkxsrlwf": "strangelove-ventures",
     "cosmosvaloper1vvwtk805lxehwle9l4yudmq6mn0g32px9xtkhc": "Imperator",
     "cosmosvaloper1083svrca4t350mphfv9x45wq9asrs60cdmrflj": "Notional",
     "cosmosvaloper16k579jk6yt2cwmqx9dz5xvq9fug2tekvlu9qdv": "Cephalopod",
     "cosmosvaloper1ddle9tczl87gsvmeva3c48nenyng4n56nghmjk": "Vitwit", # WitVal
     "cosmosvaloper1fsg635n5vgc7jazz9sx5725wnc3xqgr7awxaag": "Cros-Nest",
+    "cosmosvaloper1gjtvly9lel6zskvwtvlg5vhwpu9c9waw7sxzwx": "EzStaking.io",
+    "cosmosvaloper1nuhls0wyf8slhmuasha5pz0u89jrf9nnugq8ak": "Golden Ratio Staking",
+    "cosmosvaloper140l6y2gp3gxvay6qtn70re7z2s0gn57zfd832j": "Lavender.Five Nodes",
+    "cosmosvaloper157v7tczs40axfgejp2m43kwuzqe0wsy0rv8puv": "POSTHUMAN DVS",
+    "cosmosvaloper124maqmcqv8tquy764ktz7cu0gxnzfw54n3vww8": "Simply Staking",
+    "cosmosvaloper1gpx52r9h3zeul45amvcy2pysgvcwddxrgx6cnv": "StakeLab",
     # ION Holders - Is this in the atom relayers group??
 }
 
