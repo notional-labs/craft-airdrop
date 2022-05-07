@@ -1,5 +1,3 @@
-from ctypes import addressof
-from operator import contains
 import requests
 import ijson # https://pypi.org/project/ijson/#usage JSON as a stream
 import json
@@ -8,11 +6,14 @@ import os
 
 import src.utils as utils
 
-'''
-Snapshot tooling to stream an export to a file for easier handling in the format:
-    delegator_address   validator_address   staked_amount
+from airdrop_data import NETWORKS, AIRDROP_DISTRIBUTIONS, AIRDROP_RATES, \
+    BLACKLISTED_CENTRAL_EXCHANGES, GENESIS_VALIDATORS
 
-Where staked amount is in the udenom. Divide by 1_000_000 to get the human readable amount
+'''
+Snapshot tooling to stream an export to a file for easier handling in easy formats
+
+v46 genesis - https://github.com/notional-labs/craft/blob/master/networks/craft-testnet-1/genesis.json
+# app_state.distribution.delegator_starting_infos
 
 Example:
 osmosisd export 3500001 2> osmosis_export.json
@@ -25,100 +26,43 @@ Decompress
     xz -d appd_export.json.xz
 '''
 
-# v46 genesis - https://github.com/notional-labs/craft/blob/master/networks/craft-testnet-1/genesis.json
-# app_state.distribution.delegator_starting_infos
 
-
-sections = {
+sections = { # locations within the genesis file
     "staked_amounts": "app_state.staking.delegations",
     "account_balances": "app_state.bank.balances",
 }
 
-# Every section must have .item for the json stream parse
-for key in sections:
-    if sections[key].endswith('.item') == False:
-        sections[key] += '.item'
-
-# create new folders if not already
-if not os.path.exists("exports"):
-    os.mkdir("exports")
-if not os.path.exists("output"):
-    os.mkdir("output")
-
 def main():
-    files = { # hard for my pc to handle so only doing osmosis right now        
+    # makes exports & output directories
+    utils.createDefaultPathsIfNotExisting()
+
+    files = {     
         # "craft": "exports/craft_export.json",
         "osmosis": "exports/osmosis_export.json",
         # "akash": "exports/akash_export.json",
         # "cosmos": "exports/cosmos_export.json",
         # "juno": "exports/juno_export.json",
     }
-
-    output = {
-        "craft": "output/craft_staking_values.txt",
-        "osmosis": "output/osmosis_staking_values.txt",
-        "akash": "output/akash_staking_values.txt",
-        "cosmos": "output/cosmos_staking_values.txt",
-        "juno": "output/juno_staking_values.txt",
-    }
     
-    # Downloads files to exports dir if not already there
-    for file in getExportsOnWebsiteIndex():
-        downloadAndDecompressXZFileFromServer(fileName=file)
+    # Downloads files to exports dir if not already downloaded
+    for file in utils.getExportsOnWebsiteIndex():
+        utils.downloadAndDecompressXZFileFromServer(fileName=file)
+
+    # save stake amount data to a a file
+    for chain in files.keys():
+        save_staked_amounts(files[chain], utils.getOutputFileName(chain))
+
+    if False: # Change to True to run osmosis logic
+        # saves osmosis balances & does the pool airdrop calculation
+        save_balances(
+            files['osmosis'], 
+            'output/osmosis_balances.json', 
+            ignoreNonNativeIBCDenoms=True, 
+            ignoreEmptyAccounts=True
+        )
+        fairdrop_for_osmosis_pools()
 
 
-    # save_staked_amounts(files['craft'], output['craft'])
-    save_staked_amounts(files['osmosis'], output['osmosis'])
-    # save_staked_amounts(files['juno'], output['juno'])
-
-
-    # Saves an export & all account balances INCLUDING ibc/ tokens if you so choose
-    save_balances(files['osmosis'], 'output/osmosis_balances.json', ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True)
-    fairdrop_for_osmosis_pools()
-
-
-
-
-# Move these into their own src files
-def getExportsOnWebsiteIndex(link="https://reece.sh/exports/index.html", extensions="(.*xz)") -> list:
-    '''
-    Returns a list of all .xz files on a website (by default).
-    This index.html was generated with the following command on the server:
-        apt install tree; tree -H '.' -L 1 --noreport --charset utf-8 -P "*.xz" -o index.html 
-    '''
-    html = requests.get(link).text
-    files = re.findall(f'href="{extensions}"', html)
-    return list(x for x in (files))
-
-def downloadAndDecompressXZFileFromServer(baseLink="https://reece.sh/exports", fileName="app_export.json.xz", debug=False):
-    # checks if app_export.json.xz exists OR app_export.json, if so skip
-    if os.path.exists(f"exports/{fileName}") or os.path.exists(f"exports/{fileName.replace('.xz', '')}"):
-        if debug: 
-            print(f"{fileName} already exists, skipping")
-        return
-
-    os.chdir("exports")
-    with open(fileName, 'wb') as f:
-        response = requests.get(baseLink + "/" + fileName)
-        f.write(response.content)
-    print(f"Downloaded {fileName}. Decompressing....")
-
-    # decompress the xz file
-    os.system(f"xz -d {fileName}")
-    print(f"Decompressed {fileName}")
-    os.chdir("..")
-
-def stream_section(fn, key):
-    if key not in sections:
-        print(f"{key} not in sections")
-        return
-
-    key = sections[key]
-
-    with open(fn, 'rb') as input_file:
-        parser = ijson.items(input_file, key)
-        for idx, obj in enumerate(parser):
-            yield idx, obj
 
 def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
     output = ""
@@ -132,13 +76,13 @@ def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
         if idx % 10_000 == 0:
             print(f"{idx} accounts processing...")
 
-        if excludeCentralExchanges == True and valaddr in utils.BLACKLISTED_CENTRAL_EXCHANGES:
+        if excludeCentralExchanges == True and valaddr in BLACKLISTED_CENTRAL_EXCHANGES:
             # print(f"Skipping {delegator} because they are on a central exchange holder {valaddr}")
             continue
 
         bonus = 1.0 # no bonus by default for now. Look back at notes for how to implement properly
-        if valaddr in utils.GENESIS_VALIDATORS.keys():
-            bonus = utils.GENESIS_VALIDATORS[valaddr] # 'akashvaloper1lxh0u07haj646pt9e0l2l4qc3d8htfx5kk698d': 1.2,
+        if valaddr in GENESIS_VALIDATORS.keys():
+            bonus = GENESIS_VALIDATORS[valaddr] # 'akashvaloper1lxh0u07haj646pt9e0l2l4qc3d8htfx5kk698d': 1.2,
     
         if bonus > 1.0:
             print(f"{delegator} would get a bonus of {bonus}x for delegating to genesis validator {valaddr}")
@@ -200,11 +144,13 @@ def fairdrop_for_osmosis_pools():
         print("Be sure it is not commented out in main() & you ran it at least once")
         return
 
-    # Load the balances file
+    # Load the osmosis balances file
     with open(f"{filePath}", 'r') as f:
         osmosis_balances = json.loads(f.read())
 
     poolHolders = {}
+    # keep up with the total suppy outstanding for the snapshot
+    # so we can get their % of the pool
     totalSupply = {"gamm/pool/1": 0, "gamm/pool/561": 0}
 
     for acc in osmosis_balances:
@@ -229,40 +175,36 @@ def fairdrop_for_osmosis_pools():
     with open("output/pool.json", 'w') as o:
         o.write(json.dumps(poolHolders))
 
-    print(f"LPs\nLength of poolHolders: {len(poolHolders)}")
+    print(f"LPs\nNumber of unique wallets providing liquidity: {len(poolHolders)}")
     print(f"Total supply: {totalSupply}")
 
 
-            
-
-                
+   
     
-
-
-
-
-def DEBUG_get_keys(fn, stopLoopIter=10_000):
+def stream_section(fileName, key):
     '''
-    Gets all json keys from a file up to a select height (useful if the file is large like osmosis)
-    You can also just look at the geneisis file to get the keys
+        Given a fileName and a json key location,
+        it will stream the jso objects in that section 
+        and yield them as:
+        -> index, object
     '''
-    with open(fn, 'rb') as input_file:
-        parser = ijson.parse(input_file)
-        foundParents = []
-        foundDataTypes = {}
-        loops = 0
-        for parent, data_type, value in parser:
-            # print('parent={}, data_type={}, value={}'.format(parent, data_type, value))
-            if parent not in foundParents:
-                foundParents.append(parent)
-            loops+=1
+    if key not in sections:
+        print(f"{key} not in sections")
+        return
 
-            if loops >= stopLoopIter:
-                break
-        print(f"{foundParents}=")
-        print(f"{foundDataTypes}=")
+    key = sections[key]
 
+    with open(fileName, 'rb') as input_file:
+        parser = ijson.items(input_file, key)
+        for idx, obj in enumerate(parser):
+            yield idx, obj
 
 
 if __name__ == "__main__":
+    # Every section must have .item for the json stream to parse
+    for key in sections:
+        if sections[key].endswith('.item') == False:
+            sections[key] += '.item'
+    
+    # run the main logic
     main()
