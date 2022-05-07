@@ -65,8 +65,12 @@ src -> airdrop_data.py -> GENESIS_VALIDATORS have all Chandra addresses.
 
 ##  Group 5: ION Holders & ION LPers: - %XX
 airdrop-tools.py -> save_balances handles this.
-Need to add saving ION LP pool ids as well 
-to balance.
+Add the following gamm/pool/# to the osmosis save balance
+ION LP Pools: 
+ - 2, ION/OSMO
+ - 630, NETA/ION
+ - 151, ATOM/ION
+ - 640, BOOT/ION
 
 ##  Group 6: CRAFT Genesis Set: - %XX
 src -> airdrop_data.py -> GENESIS_VALIDATORS have all Chandra addresses.
