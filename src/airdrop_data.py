@@ -17,6 +17,16 @@ AIRDROP_RATES = { # TODO: NOT REAL VALUES, FOR TESTING ONLY
     "osmo": 100_000      # 0.1 osmo = 1 craft
 }
 
+ATOM_RELAYERS = {
+    "cosmosvaloper130mdu9a0etmeuw52qfxk73pn0ga6gawkxsrlwf": "strangelove-ventures",
+    "cosmosvaloper1vvwtk805lxehwle9l4yudmq6mn0g32px9xtkhc": "Imperator",
+    "cosmosvaloper1083svrca4t350mphfv9x45wq9asrs60cdmrflj": "Notional",
+    "cosmosvaloper16k579jk6yt2cwmqx9dz5xvq9fug2tekvlu9qdv": "Cephalopod",
+    "cosmosvaloper1ddle9tczl87gsvmeva3c48nenyng4n56nghmjk": "Vitwit", # WitVal
+    "cosmosvaloper1fsg635n5vgc7jazz9sx5725wnc3xqgr7awxaag": "Cros-Nest",
+    # ION Holders - Is this in the atom relayers group??
+}
+
 BLACKLISTED_CENTRAL_EXCHANGES = {
     'cosmosvaloper156gqf9837u7d4c4678yt3rl4ls9c5vuursrrzf': "Binance Staking",
     'cosmosvaloper1a3yjj7d3qnx4spgvjcwjq9cw9snrrrhu5h6jll': "Coinbase Custody",
