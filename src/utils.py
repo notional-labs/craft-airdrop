@@ -1,7 +1,10 @@
 import bech32
 import requests
+import math
 import re
 import os
+
+from tqdm import tqdm
 
 OUTPUT_DIR = "output"
 EXPORT_DIRECTORY = "exports"
@@ -36,20 +39,40 @@ def getExportsOnWebsiteIndex(link="https://reece.sh/exports/index.html", extensi
     files = re.findall(f'href="{extensions}"', html)
     return list(x for x in (files))
 
+
 def downloadAndDecompressXZFileFromServer(baseLink="https://reece.sh/exports", fileName="app_export.json.xz", debug=False):
-    if os.path.exists(f"exports/{fileName}"):
+    # doesn't download if we already have a copy of the xz file OR the json file normally
+    if os.path.exists(f"exports/{fileName}") or os.path.exists(f"exports/{fileName.replace('.xz', '')}"):
         if debug: 
             print(f"{fileName} already exists, skipping")
         return
 
     os.chdir("exports")
-    with open(fileName, 'wb') as f:
-        print(f"Downloading {fileName}...")
-        response = requests.get(baseLink + "/" + fileName)
-        f.write(response.content)
+    
+    # response = requests.get(baseLink + "/" + fileName, stream=True)
+    # with open(fileName, 'wb') as f:
+        # f.write(response.content)
+
+    print(f"Downloading {fileName}...")
+    download(baseLink + "/" + fileName, fileName)
     print(f"Downloaded {fileName}!\nDecompressing....")
 
     # decompress the xz file
     os.system(f"xz -d {fileName}")
     print(f"Decompressed {fileName}")
     os.chdir("..")
+
+
+def download(url, fname):
+    resp = requests.get(url, stream=True)
+    total = int(resp.headers.get('content-length', 0))
+    with open(fname, 'wb') as file, tqdm(
+            desc=fname,
+            total=total,
+            unit='MiB',
+            unit_scale=True,
+            unit_divisor=1024,
+    ) as bar:
+        for data in resp.iter_content(chunk_size=1024):
+            size = file.write(data)
+            bar.update(size)
