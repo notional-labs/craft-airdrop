@@ -238,7 +238,13 @@ def group5_ION_holders_and_LPers():
     print(f"{ACTUAL_ION_ALLOTMENT=}")
 
                 
+def group6_genesis_set_validators():
+    # loop through ALL exports & if they are delegated, they get a portion.
+    # So we have to calulate TOTAL SUPPLY of all chains for every snapshot. nice
+    pass
 
+def group7_craft_economy_beta_participants():
+    pass # Get from MongoDB after we have beta
 
 
 # Required for every chain we use
