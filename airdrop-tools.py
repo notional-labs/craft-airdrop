@@ -7,7 +7,7 @@ import os
 import src.utils as utils
 
 from src.airdrop_data import AIRDROP_DISTRIBUTIONS, AIRDROP_RATES, \
-    BLACKLISTED_CENTRAL_EXCHANGES, GENESIS_VALIDATORS
+    BLACKLISTED_CENTRAL_EXCHANGES, GENESIS_VALIDATORS, ATOM_RELAYERS
 
 '''
 Snapshot tooling to stream an export to a file for easier handling in easy formats
@@ -35,16 +35,21 @@ sections = { # locations within the genesis file
 # used for all chains so we can get their % of total stake
 totalStakedUTokens = {}
 
+# When going over the cosmos chain, we calculate the total stake
+# all their validators have. Then get users &'s absed off this.
+# This is calulated in group 1, but not used until group 3 :)
+totalAtomRelayersTokens = 0 
+
 def main():
     global totalStakedUTokens
     # makes exports & output directories
     utils.createDefaultPathsIfNotExisting()
 
     files = {
-        "osmosis": "exports/osmosis_export.json",
-        "akash": "exports/akash_export.json",
+        # "osmosis": "exports/osmosis_export.json",
+        # "akash": "exports/akash_export.json",
         "cosmos": "exports/cosmos_export.json",
-        "juno": "exports/juno_export.json",
+        # "juno": "exports/juno_export.json",
     }
     
     # Downloads files to exports dir if not already downloaded
@@ -60,10 +65,13 @@ def main():
         totalStakedUTokens[chain] = totalTokens
 
     # Group 1
-    for chain in ["akash", "cosmos", "juno", "osmosis"]:
+    # for chain in ["akash", "cosmos", "juno", "osmosis"]:
+    for chain in ["cosmos"]:
         # if chain in files: # to do only ones uncommented
-            # Gets the staked amount file & does the logic on it for the airdrop
+        # Gets the staked amount file & does the logic on it for the airdrop
         group1_stakers_with_genesis_bonus(chain)
+
+    group3_atom_relayers()
 
     # Group 2
     if False: # Change to True to run osmosis logic
@@ -119,10 +127,42 @@ def group1_stakers_with_genesis_bonus(chainName):
     print(f"{chainName} airdrop - ALLOTMENT: {CRAFT_ALLOTMENTS[chainName]}")
     print(f"GIVEN EXCLUDING BONUS: {ACTUAL_ALLOTMENT_GIVEN} + BONUSES: {ACTUAL_BONUS_GIVEN} = {ACTUAL_ALLOTMENT_GIVEN + ACTUAL_BONUS_GIVEN} TOTAL")
 
+def group3_atom_relayers(): # cosmos
+    '''Group 3: ATOM Relayers, we <3 you!'''
+    print(f"Running Group 3 airdrop for atom relayers validators ")
+
+    # TODO: Actual airdrop allotments
+    CRAFT_ALLOTMENTS = 5_000_000
+
+    ACTUAL_ALLOTMENT_GIVEN = 0 
+
+    allCosmosStakers = utils.getOutputFileName("cosmos")
+
+    reset_craft_airdrop_temp_dict()
+    for delegator, valaddr, bonus, ustake in yield_staked_values(allCosmosStakers):
+        
+        if valaddr not in ATOM_RELAYERS.keys():
+            continue # wse only want people delegated to relayers here
+
+        theirPercentOfAllStaked = float(ustake) / totalAtomRelayersTokens
+        theirAllotment = theirPercentOfAllStaked * CRAFT_ALLOTMENTS # how much craft THEY get before bonus
+
+        ACTUAL_ALLOTMENT_GIVEN += theirAllotment # debugging: actual craft being given, 
+        
+        add_airdrop_to_craft_account(str(delegator), theirAllotment * 1_000_000)
+    
+    with open(f"final/group3_atomrelayers.json", 'w') as o:
+        o.write(json.dumps(craft_airdrop_amounts))
+    reset_craft_airdrop_temp_dict()
+
+    print(f"GROUP 3 airdrop - Atom Relayers - ALLOTMENT: {CRAFT_ALLOTMENTS}. ACTUAL: {ACTUAL_ALLOTMENT_GIVEN}")
+
+
 
 
 # Required for every chain we use
 def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
+    global totalAtomRelayersTokens
     '''
     Returns total supply of staked tokens for this chain network
     '''
@@ -138,6 +178,10 @@ def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
         stake = str(obj['shares'])   
 
         totalStaked += float(stake)
+
+        # for group 3 :)
+        if 'cosmos' in input_file and valaddr in ATOM_RELAYERS.keys():
+            totalAtomRelayersTokens += float(stake)
 
         # totalAccounts += 1
         if idx % 25_000 == 0:

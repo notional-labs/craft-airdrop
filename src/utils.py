@@ -25,8 +25,8 @@ def createDefaultPathsIfNotExisting():
     if not os.path.exists(FINAL_DIRECTORY):
         os.mkdir(FINAL_DIRECTORY) # where we place completed files
 
-def getOutputFileName(chain_name):
-    return f"{OUTPUT_DIR}/{chain_name}_staking_values.txt"
+def getOutputFileName(chain_name, reason="staking_values"):
+    return f"{OUTPUT_DIR}/{chain_name}_{reason}.txt"
 
 
 
