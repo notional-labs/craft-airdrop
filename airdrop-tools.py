@@ -32,7 +32,7 @@ sections = { # locations within the genesis file
     "account_balances": "app_state.bank.balances",
 }
 
-# used for all chains so we can get their % of total stake
+# used for all chains so we can get a persons % of total stake
 totalStakedUTokens = {}
 
 # When going over the cosmos chain, we calculate the total stake
@@ -40,15 +40,23 @@ totalStakedUTokens = {}
 # This is calulated in group 1, but not used until group 3 :)
 totalAtomRelayersTokens = 0 
 
+totalIONSupply = { # 2, 630, 151, 640 based on dexmos.app
+    "uion": 0, # used in group 5
+    "gamm/pool/2": 0,
+    "gamm/pool/630": 0,
+    "gamm/pool/151": 0,
+    "gamm/pool/640": 0,
+}
+
 def main():
     global totalStakedUTokens
     # makes exports & output directories
     utils.createDefaultPathsIfNotExisting()
 
     files = {
-        # "osmosis": "exports/osmosis_export.json",
+        "osmosis": "exports/osmosis_export.json",
         # "akash": "exports/akash_export.json",
-        "cosmos": "exports/cosmos_export.json",
+        # "cosmos": "exports/cosmos_export.json",
         # "juno": "exports/juno_export.json",
     }
     
@@ -60,29 +68,29 @@ def main():
     
 
     # save stake amount data to a a file
-    for chain in files.keys():
-        totalTokens = save_staked_amounts(files[chain], utils.getOutputFileName(chain))
-        totalStakedUTokens[chain] = totalTokens
+    # for chain in files.keys():
+    #     totalTokens = save_staked_amounts(files[chain], utils.getOutputFileName(chain))
+    #     totalStakedUTokens[chain] = totalTokens
 
     # Group 1
     # for chain in ["akash", "cosmos", "juno", "osmosis"]:
-    for chain in ["cosmos"]:
-        # if chain in files: # to do only ones uncommented
-        # Gets the staked amount file & does the logic on it for the airdrop
-        group1_stakers_with_genesis_bonus(chain)
-
-    group3_atom_relayers()
+    # for chain in ["cosmos"]:
+    #     # if chain in files: # to do only ones uncommented
+    #     # Gets the staked amount file & does the logic on it for the airdrop
+    #     group1_stakers_with_genesis_bonus(chain)
+    # group3_atom_relayers()
 
     # Group 2
-    if False: # Change to True to run osmosis logic
+    if True: # Change to True to run osmosis logic
         # saves osmosis balances & does the pool airdrop calculation
         save_balances(
             files['osmosis'], 
             'output/osmosis_balances.json', 
             ignoreNonNativeIBCDenoms=True, 
             ignoreEmptyAccounts=True
-        )
-        fairdrop_for_osmosis_pools() # group 2
+        )            
+        # group2_fairdrop_for_osmosis_pools() # group 2
+        group5_ION_holders_and_LPers()
 
 
 def group1_stakers_with_genesis_bonus(chainName):
@@ -159,6 +167,79 @@ def group3_atom_relayers(): # cosmos
 
 
 
+def group4_chandra_station_delegators():
+    chandra_station = { # This is just copy pasted from GENESIS_VALIDATORS. Boost already applied in group1
+        'akashvaloper1lxh0u07haj646pt9e0l2l4qc3d8htfx5kk698d': 1.2, 
+        'osmovaloper10ymws40tepmjcu3a2wuy266ddna4ktas0zuzm4': 1.2,
+        'junovaloper106y6thy7gphzrsqq443hl69vfdvntgz260uxlc': 1.2,
+        'sentvaloper1lxh0u07haj646pt9e0l2l4qc3d8htfx543ss9m': 1.2,
+        'emoneyvaloper1lxh0u07haj646pt9e0l2l4qc3d8htfx5ev9y8d': 1.2,
+        'comdexvaloper1lxh0u07haj646pt9e0l2l4qc3d8htfx59hp5ft': 1.2,
+        'gravityvaloper1728s3k0mgzmc38eswpu9seghl0yczupyhc695s': 1.2,
+        'digvaloper1dv3v662kd3pp6pxfagck4zyysas82adspfvtw4': 1.2, 
+        'chihuahuavaloper1lxh0u07haj646pt9e0l2l4qc3d8htfx5pd5hur': 1.2,
+    }
+
+    CHANDRA_CRAFT_ALLOTMENTS = {
+        "akash": 250_000,
+        "osmosis": 100_000,
+        "juno": 100_000,
+        "sent": 100_000,
+        "emoney": 100_000,
+        "comdex": 100_000,
+        "gravity": 100_000, # ?? can we do
+        "dig": 100_000, # ?? how do we do 0x
+        "chihuahua": 100_000,
+    }
+    
+    
+def group5_ION_holders_and_LPers():
+    '''Group 5: ION Holders and LPers'''
+    print(f"Running Group 5 airdrop for ION holders and LPers ")
+
+    CRAFT_ION_ALLOTMENT = { # 2, 630, 151, 640 based on dexmos.app
+        "uion": 500_000,
+        "gamm/pool/2": 50_000,
+        "gamm/pool/630": 50_000,
+        "gamm/pool/151": 25_000,
+        "gamm/pool/640": 25_000,
+    }
+    ACTUAL_LP_ALLOTMENT = 0
+    ACTUAL_ION_ALLOTMENT = 0
+    # ensure you have already save_balances() up in main before this section
+
+    with open("output/osmosis_balances.json", 'r') as f:
+        osmosis_balances = json.loads(f.read())
+
+    for address in osmosis_balances.keys():
+        # print(address, osmosis_balances[address])
+
+        for denom in osmosis_balances[address].keys():
+
+            if denom == "uion" or denom in CRAFT_ION_ALLOTMENT.keys():  
+                balance = float(osmosis_balances[address][denom])
+                totalSupply = totalIONSupply[denom]
+
+                percentOfTotalSupply = balance / totalSupply
+                theirAllotment = percentOfTotalSupply * CRAFT_ION_ALLOTMENT[denom]
+
+                if denom == "uion":
+                    ACTUAL_ION_ALLOTMENT += theirAllotment
+                else:
+                    ACTUAL_LP_ALLOTMENT += theirAllotment
+
+                add_airdrop_to_craft_account(address, theirAllotment * 1_000_000)
+
+    with open(f"final/group5_ion.json", 'w') as o:
+        o.write(json.dumps(craft_airdrop_amounts))
+
+    print(f"GROUP 5 airdrop - ION - ALLOTMENT (includes ion too): {CRAFT_ION_ALLOTMENT}.")
+    print(f"{ACTUAL_LP_ALLOTMENT=}")
+    print(f"{ACTUAL_ION_ALLOTMENT=}")
+
+                
+
+
 
 # Required for every chain we use
 def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
@@ -216,6 +297,8 @@ def yield_staked_values(input_file):
 
 
 def save_balances(input_file, output_file, ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True):
+    global totalIONSupply
+
     print(f"Saving balances to {output_file}. {ignoreNonNativeIBCDenoms=} {ignoreEmptyAccounts=}")
     accounts = {}
     for idx, obj in stream_section(input_file, 'account_balances'):
@@ -229,6 +312,9 @@ def save_balances(input_file, output_file, ignoreNonNativeIBCDenoms=True, ignore
 
             if ignoreNonNativeIBCDenoms and str(denom).startswith('ibc/'):
                 continue # ignore any non native ibc tokens held by the account
+
+            if denom in totalIONSupply.keys():
+                totalIONSupply[denom] += float(amount) # uion, and 4 pools which are ion based. used in group 5
 
             outputCoins[denom] = amount # {'uion': 1000000, 'uosmo': 1000000}
 
@@ -269,7 +355,7 @@ def reset_craft_airdrop_temp_dict():
     craft_airdrop_amounts = {}
 
 
-def fairdrop_for_osmosis_pools():
+def group2_fairdrop_for_osmosis_pools():
     '''Group #2 - LPs for pool #1 and #561 (luna/osmo)'''
 
     filePath = "output/osmosis_balances.json" 
@@ -329,8 +415,8 @@ def fairdrop_for_osmosis_pools():
 # used in above function. 
 def osmosis_get_all_LP_providers(filePath): # for group 2
     '''
-    fairdrop_for_osmosis_pools() calls this to get the totalSupply & all poolHolders for 1 & 561.
-    Then the fairdrop_for_osmosis_pools() function loops through these values again to get % of the pool
+    group2_fairdrop_for_osmosis_pools() calls this to get the totalSupply & all poolHolders for 1 & 561.
+    Then the group2_fairdrop_for_osmosis_pools() function loops through these values again to get % of the pool
     THEN it dumps to file
     '''
      

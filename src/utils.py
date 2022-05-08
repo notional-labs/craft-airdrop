@@ -12,7 +12,7 @@ FINAL_DIRECTORY = "final"
 
 def convert_address_to_craft(address) -> str:
     if address.startswith('0x'):
-        return None  # TODO: DIG 0x addresses? how do we convert to beh32
+        return None  # TODO: DIG 0x addresses? how do we convert to beh32. Gravity bridge too?
     _, data = bech32.bech32_decode(address)
     return bech32.bech32_encode('craft', data)
 
