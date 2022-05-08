@@ -26,7 +26,7 @@ Ensure you edit airdrop-tools.py main() function to point to the correct files
 
 ### Usage
 ```
-python3 -m pip install ijson requests
+python3 -m pip install ijson requests tqdm
 
 # Edit main in airdrop-tools.py to your liking, comment out lines
 
