@@ -50,8 +50,8 @@ def main():
             utils.downloadAndDecompressXZFileFromServer(fileName=file)
 
     # save stake amount data to a a file
-    # for chain in files.keys():
-    #     save_staked_amounts(files[chain], utils.getOutputFileName(chain))
+    for chain in files.keys():
+        save_staked_amounts(files[chain], utils.getOutputFileName(chain))
 
     if True: # Change to True to run osmosis logic
         # saves osmosis balances & does the pool airdrop calculation
@@ -129,7 +129,7 @@ def save_balances(input_file, output_file, ignoreNonNativeIBCDenoms=True, ignore
         
 
 
-craft_airdrop_amounts = {} # ensure we save this to file
+craft_airdrop_amounts = {} # ENSURE YOU RESET THIS AFTER SAVING FOR A GROUP
 def add_airdrop_to_craft_account(craft_address, amount):
     global craft_airdrop_amounts
     '''
@@ -144,45 +144,56 @@ def add_airdrop_to_craft_account(craft_address, amount):
 
     craft_airdrop_amounts[craft_address] += amount
 
+def reset_craft_airdrop_temp_dict():
+    '''
+    Call this after you calulate all values for a given group &
+    save that group to its own unique txt file.
+    '''
+    global craft_airdrop_amounts
+    craft_airdrop_amounts = {}
+
 
 def fairdrop_for_osmosis_pools():
     '''Group #2 - LPs for pool #1 and #561 (luna/osmo)'''
 
     filePath = "output/osmosis_balances.json" 
-    totalSupply, poolHolders = osmosis_get_all_LP_providers(filePath)
+
+    # FORMAT: poolHolder in file: {"osmoaddress": {"gamm/pool/1": 0, "gamm/pool/561": 0}, {...}}
+    # FORMAT: totalSupply in file: {"gamm/pool/1": 0, "gamm/pool/561": 0}
+    totalSupply, poolHolders = osmosis_get_all_LP_providers(filePath)    
     if totalSupply == {}: # filePath doesn't exist yet
         return
 
-    CRAFT_SUPPLY_FOR_POOLS = { # TODO: change this with bean based on which rates we give each. move into airdrop_data file
-        "gamm/pool/1": 1_000_000,
+    CRAFT_SUPPLY_FOR_POOLS = { 
+        # TODO: change this with bean based on which rates we give each. move into airdrop_data file.
+        "gamm/pool/1": 1_000_000, # Move these into airdrop data
         "gamm/pool/561": 1_500_000
     }
+    
 
-    # poolHolder format in file: {"osmoaddress": {"gamm/pool/1": 0, "gamm/pool/561": 0}, {...}}
-    # totalSupply format in file: {"gamm/pool/1": 0, "gamm/pool/561": 0}
+    # DEBUGGING - just to check that this is close to CRAFT_SUPPLY_FOR_POOLS total
+    totalCraftGivenActual = { "gamm/pool/1": 0, "gamm/pool/561": 0}
 
-    totalCraftGivenActual = { 
-        # DEBUGGING - just to check that this is close to CRAFT_SUPPLY_FOR_POOLS total
-        "gamm/pool/1": 0,
-        "gamm/pool/561": 0
-    }
-
-    LPersCRAFTAmountForGroup2 = {} # address: 100 (if they get 100 craft, this is NOT ucraft)
     for address in poolHolders.keys():
         # usersPoolPercent = {"gamm/pool/1": 0, "gamm/pool/561": 0}
 
         for token in ["gamm/pool/1", "gamm/pool/561"]:
-            # "gamm/pool/1" = (userTokens / totalSupply)   [*100 = their % human readable]
+            # A users LP Token Share
             tokenAmount = int(poolHolders[address][token])
             if tokenAmount == 0:
                 continue
 
-            # We do NOT * 100 here since we need the decimal value
-            theirPercentOwnership = (tokenAmount / int(totalSupply[token])) # ex 0.00002
-            theirCraftTokens = CRAFT_SUPPLY_FOR_POOLS[token] * theirPercentOwnership # (totalSupplyForGivenPool*0.00002)
+            # decimal percent -> ex 0.00002
+            theirPercentOwnership = (tokenAmount / int(totalSupply[token])) 
+
+            # (totalSupplyForGivenPool*0.00002) = theirAllotmentOfCraft
+            theirCraftAllotment = CRAFT_SUPPLY_FOR_POOLS[token] * theirPercentOwnership 
 
             # DEBUG to ensure we are close to giving out ALL of the amount of CRAFT for each pool here
-            totalCraftGivenActual[token] += theirCraftTokens
+            totalCraftGivenActual[token] += theirCraftAllotment
+
+            # Saved as ucraft
+            add_airdrop_to_craft_account(address, theirCraftAllotment * 1_000_000)
 
             # if token == "gamm/pool/561": # DEBUG
             #     print(f"{address}'s {token} -> {theirCRAFTForThisGroup}craft")
@@ -190,10 +201,12 @@ def fairdrop_for_osmosis_pools():
 
     # save each osmo addresses % of the given pool based on the total supply
     # This will be easier to just do theirPercent*totalCraftSupplyForGroup2 = Their craft
-    with open("output/Group2_LP_Pools_Craft_Amounts.json", 'w') as o:
-        o.write(json.dumps(LPersCRAFTAmountForGroup2))
+    with open("final/Group2_LP_Pools_Craft_Amounts.json", 'w') as o:
+        o.write(json.dumps(craft_airdrop_amounts))
+    
+    reset_craft_airdrop_temp_dict()
 
-    print(f"LPs\nNumber of unique wallets providing liquidity: {len(poolHolders)}")
+    print(f":::LPs:::\nNumber of unique wallets providing liquidity to #1 & #561: {len(poolHolders)}")
     print(f"Total supply: {totalSupply}")
     print(f"Total craft given: {totalCraftGivenActual=} out of {CRAFT_SUPPLY_FOR_POOLS=}")
 
@@ -203,9 +216,7 @@ def osmosis_get_all_LP_providers(filePath): # for group 2
     Then the fairdrop_for_osmosis_pools() function loops through these values again to get % of the pool
     THEN it dumps to file
     '''
-
-    # Ensure output/osmosis_balances.json exists
-       
+     
     if not os.path.exists(filePath):
         print(f"{filePath} does not exist, exiting")
         print("Be sure it is not commented out in main() & you ran it at least once")
@@ -228,14 +239,15 @@ def osmosis_get_all_LP_providers(filePath): # for group 2
             amount = coins[denom]
             # print(f"{address} has {amount} {denom}") # shows all balances
 
-            if denom in ["gamm/pool/561", "gamm/pool/1"]: # atom/osmo, luna/osmo
-                if address not in poolHolders:
-                    pools = {"gamm/pool/1": 0, "gamm/pool/561": 0}
-                    poolHolders[address] = pools
+            if denom not in ["gamm/pool/561", "gamm/pool/1"]: # atom/osmo, luna/osmo
+                continue # checks next coin denom in coins
 
-                poolHolders[address][denom] = amount
-                totalSupply[denom] += int(amount) # add to total supply for stats
-                # print(poolHolders)
+            if address not in poolHolders:
+                poolHolders[address] = {"gamm/pool/1": 0, "gamm/pool/561": 0}
+
+            poolHolders[address][denom] = amount
+            totalSupply[denom] += int(amount) # add to total supply for stats
+            # print(poolHolders)
 
     return totalSupply, poolHolders
 

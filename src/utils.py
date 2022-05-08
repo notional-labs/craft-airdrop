@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 OUTPUT_DIR = "output"
 EXPORT_DIRECTORY = "exports"
+FINAL_DIRECTORY = "final"
 
 def convert_address_to_craft(address) -> str:
     if address.startswith('0x'):
@@ -21,6 +22,8 @@ def createDefaultPathsIfNotExisting():
         os.mkdir(EXPORT_DIRECTORY)
     if not os.path.exists(OUTPUT_DIR):
         os.mkdir(OUTPUT_DIR)
+    if not os.path.exists(FINAL_DIRECTORY):
+        os.mkdir(FINAL_DIRECTORY) # where we place completed files
 
 def getOutputFileName(chain_name):
     return f"{OUTPUT_DIR}/{chain_name}_staking_values.txt"
