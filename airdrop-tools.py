@@ -191,6 +191,8 @@ def group4_chandra_station_delegators():
         "dig": 100_000, # ?? how do we do 0x
         "chihuahua": 100_000,
     }
+
+    reset_craft_airdrop_temp_dict()
     
     
 def group5_ION_holders_and_LPers():
@@ -211,6 +213,7 @@ def group5_ION_holders_and_LPers():
     with open("output/osmosis_balances.json", 'r') as f:
         osmosis_balances = json.loads(f.read())
 
+    reset_craft_airdrop_temp_dict()
     for address in osmosis_balances.keys():
         # print(address, osmosis_balances[address])
 
@@ -236,6 +239,7 @@ def group5_ION_holders_and_LPers():
     print(f"GROUP 5 airdrop - ION - ALLOTMENT (includes ion too): {CRAFT_ION_ALLOTMENT}.")
     print(f"{ACTUAL_LP_ALLOTMENT=}")
     print(f"{ACTUAL_ION_ALLOTMENT=}")
+    reset_craft_airdrop_temp_dict()
 
                 
 def group6_genesis_set_validators():
@@ -244,6 +248,11 @@ def group6_genesis_set_validators():
     pass
 
 def group7_craft_economy_beta_participants():
+    with open("crafteconomy_beta_participants.json", 'r') as f:
+        beta_participants = json.loads(f.read())
+    allotmentPerParticipant = 100
+    for wallet in beta_participants:
+        add_airdrop_to_craft_account(wallet, 1_000_000)
     pass # Get from MongoDB after we have beta
 
 
@@ -360,7 +369,7 @@ def reset_craft_airdrop_temp_dict():
     global craft_airdrop_amounts
     craft_airdrop_amounts = {}
 
-
+# TODO: Merge group 5 ION LPs in here too? If so osmosis_get_all_LP_providers needs to add their pools as well
 def group2_fairdrop_for_osmosis_pools():
     '''Group #2 - LPs for pool #1 and #561 (luna/osmo)'''
 
