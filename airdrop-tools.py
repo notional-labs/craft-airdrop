@@ -50,8 +50,8 @@ def main():
             utils.downloadAndDecompressXZFileFromServer(fileName=file)
 
     # save stake amount data to a a file
-    for chain in files.keys():
-        save_staked_amounts(files[chain], utils.getOutputFileName(chain))
+    # for chain in files.keys():
+    #     save_staked_amounts(files[chain], utils.getOutputFileName(chain))
 
     if True: # Change to True to run osmosis logic
         # saves osmosis balances & does the pool airdrop calculation
@@ -66,6 +66,7 @@ def main():
 
 
 def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
+    print(f"Saving staked amounts to {output_file}. {excludeCentralExchanges=}")
     output = ""
     delegatorsWithBonuses = 0 # just for stats
     # totalAccounts = 0
@@ -75,8 +76,8 @@ def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
         stake = str(obj['shares'])        
 
         # totalAccounts += 1
-        if idx % 10_000 == 0:
-            print(f"{idx} accounts processing...")
+        if idx % 25_000 == 0:
+            print(f"{idx} staking accounts processing...")
 
         if excludeCentralExchanges == True and valaddr in BLACKLISTED_CENTRAL_EXCHANGES:
             # print(f"Skipping {delegator} because they are on a central exchange holder {valaddr}")
@@ -89,71 +90,135 @@ def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
 
         output += f"{delegator} {valaddr} {bonus} {float(stake)}\n"
 
-    print(f"{idx} accounts processed from {input_file}")
-    print(f"{delegatorsWithBonuses=}")
+    print(f"{idx} staking accounts processed from {input_file}")
+    print(f"{delegatorsWithBonuses=}\n")
     with open(output_file, 'w') as o:
         o.write(output)
 
 
 def save_balances(input_file, output_file, ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True):
-        accounts = {}
-        for idx, obj in stream_section(input_file, 'account_balances'):
-            address = str(obj['address'])
-            coins = obj['coins']
+    print(f"Saving balances to {output_file}. {ignoreNonNativeIBCDenoms=} {ignoreEmptyAccounts=}")
+    accounts = {}
+    for idx, obj in stream_section(input_file, 'account_balances'):
+        address = str(obj['address'])
+        coins = obj['coins']
 
-            outputCoins = {}
-            for coin in coins:
-                denom = coin['denom']
-                amount = coin['amount']
+        outputCoins = {}
+        for coin in coins:
+            denom = coin['denom']
+            amount = coin['amount']
 
-                if ignoreNonNativeIBCDenoms and str(denom).startswith('ibc/'):
-                    continue # ignore any non native ibc tokens held by the account
+            if ignoreNonNativeIBCDenoms and str(denom).startswith('ibc/'):
+                continue # ignore any non native ibc tokens held by the account
 
-                outputCoins[denom] = amount # {'uion': 1000000, 'uosmo': 1000000}
+            outputCoins[denom] = amount # {'uion': 1000000, 'uosmo': 1000000}
 
-            if idx % 10_000 == 0:
-                print(f"{idx} accounts processed")
+        if idx % 50_000 == 0:
+            print(f"{idx} balances accounts processed")
 
-            if ignoreEmptyAccounts and len(outputCoins) == 0:
-                continue
+        if ignoreEmptyAccounts and len(outputCoins) == 0:
+            continue
 
-            # print(f"{address} {outputCoins}")
-            # output += f"{address} {outputCoins}\n"
-            accounts[address] = outputCoins
-            
-        print(f"{idx} accounts processed from {input_file}")
-        with open(output_file, 'w') as o:
-            o.write(json.dumps(accounts))
+        # print(f"{address} {outputCoins}")
+        # output += f"{address} {outputCoins}\n"
+        accounts[address] = outputCoins
+        
+    print(f"{idx} accounts processed from {input_file}")
+    with open(output_file, 'w') as o:
+        o.write(json.dumps(accounts))
         
 
-craft_airdrop_amounts = {}
-def add_airdrop_to_account(craft_address, amount):
+
+craft_airdrop_amounts = {} # ensure we save this to file
+def add_airdrop_to_craft_account(craft_address, amount):
     global craft_airdrop_amounts
+    '''
+    Adds an airdrop amount to their craft account
+    '''
+
+    if not craft_address.startswith('craft'):
+        craft_address = utils.convert_address_to_craft(craft_address)
+    
     if craft_address not in craft_airdrop_amounts:
         craft_airdrop_amounts[craft_address] = 0
+
     craft_airdrop_amounts[craft_address] += amount
-    pass
+
 
 def fairdrop_for_osmosis_pools():
     '''Group #2 - LPs for pool #1 and #561 (luna/osmo)'''
-    # Should we divide these numbers by like 1billion to make pools easier to manage?
-    
-    filePath = "output/osmosis_balances.json"
+
+    filePath = "output/osmosis_balances.json" 
+    totalSupply, poolHolders = osmosis_get_all_LP_providers(filePath)
+    if totalSupply == {}: # filePath doesn't exist yet
+        return
+
+    CRAFT_SUPPLY_FOR_POOLS = { # TODO: change this with bean based on which rates we give each. move into airdrop_data file
+        "gamm/pool/1": 1_000_000,
+        "gamm/pool/561": 1_500_000
+    }
+
+    # poolHolder format in file: {"osmoaddress": {"gamm/pool/1": 0, "gamm/pool/561": 0}, {...}}
+    # totalSupply format in file: {"gamm/pool/1": 0, "gamm/pool/561": 0}
+
+    totalCraftGivenActual = { 
+        # DEBUGGING - just to check that this is close to CRAFT_SUPPLY_FOR_POOLS total
+        "gamm/pool/1": 0,
+        "gamm/pool/561": 0
+    }
+
+    LPersCRAFTAmountForGroup2 = {} # address: 100 (if they get 100 craft, this is NOT ucraft)
+    for address in poolHolders.keys():
+        # usersPoolPercent = {"gamm/pool/1": 0, "gamm/pool/561": 0}
+
+        for token in ["gamm/pool/1", "gamm/pool/561"]:
+            # "gamm/pool/1" = (userTokens / totalSupply)   [*100 = their % human readable]
+            tokenAmount = int(poolHolders[address][token])
+            if tokenAmount == 0:
+                continue
+
+            # We do NOT * 100 here since we need the decimal value
+            theirPercentOwnership = (tokenAmount / int(totalSupply[token])) # ex 0.00002
+            theirCraftTokens = CRAFT_SUPPLY_FOR_POOLS[token] * theirPercentOwnership # (totalSupplyForGivenPool*0.00002)
+
+            # DEBUG to ensure we are close to giving out ALL of the amount of CRAFT for each pool here
+            totalCraftGivenActual[token] += theirCraftTokens
+
+            # if token == "gamm/pool/561": # DEBUG
+            #     print(f"{address}'s {token} -> {theirCRAFTForThisGroup}craft")
+
+
+    # save each osmo addresses % of the given pool based on the total supply
+    # This will be easier to just do theirPercent*totalCraftSupplyForGroup2 = Their craft
+    with open("output/Group2_LP_Pools_Craft_Amounts.json", 'w') as o:
+        o.write(json.dumps(LPersCRAFTAmountForGroup2))
+
+    print(f"LPs\nNumber of unique wallets providing liquidity: {len(poolHolders)}")
+    print(f"Total supply: {totalSupply}")
+    print(f"Total craft given: {totalCraftGivenActual=} out of {CRAFT_SUPPLY_FOR_POOLS=}")
+
+def osmosis_get_all_LP_providers(filePath): # for group 2
+    '''
+    fairdrop_for_osmosis_pools() calls this to get the totalSupply & all poolHolders for 1 & 561.
+    Then the fairdrop_for_osmosis_pools() function loops through these values again to get % of the pool
+    THEN it dumps to file
+    '''
+
     # Ensure output/osmosis_balances.json exists
+       
     if not os.path.exists(filePath):
         print(f"{filePath} does not exist, exiting")
         print("Be sure it is not commented out in main() & you ran it at least once")
-        return
+        return {}, {}
 
-    # Load the osmosis balances file
     with open(f"{filePath}", 'r') as f:
         osmosis_balances = json.loads(f.read())
 
     poolHolders = {}
-    # keep up with the total suppy outstanding for the snapshot
-    # so we can get their % of the pool
+    # TODO: EDIT ME after running this once and paste in the non 0 values of each pool
     totalSupply = {"gamm/pool/1": 0, "gamm/pool/561": 0}
 
+    # Puts pool holders in dict, and updates total supply.
     for acc in osmosis_balances:
         address = acc
         coins = osmosis_balances[acc]
@@ -172,12 +237,7 @@ def fairdrop_for_osmosis_pools():
                 totalSupply[denom] += int(amount) # add to total supply for stats
                 # print(poolHolders)
 
-    # save poolHolders to a pool.json file in the output directory
-    with open("output/pool.json", 'w') as o:
-        o.write(json.dumps(poolHolders))
-
-    print(f"LPs\nNumber of unique wallets providing liquidity: {len(poolHolders)}")
-    print(f"Total supply: {totalSupply}")
+    return totalSupply, poolHolders
 
 
    
