@@ -48,6 +48,7 @@ Anyone Staking: (Exclude exchanges)
 <br/>
 
 ##  Group 2: Osmo LP'ers: - %XX
+### DONE! - just needs finalized craft allotments for each pool (bean)
 Anyone LP'ing:
  - "gamm/pool/1"   # ATOM/OSMO
  - "gamm/pool/561" # OSMO/LUNA
