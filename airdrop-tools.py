@@ -46,13 +46,14 @@ def main():
     
     # Downloads files to exports dir if not already downloaded
     for file in utils.getExportsOnWebsiteIndex():
-        utils.downloadAndDecompressXZFileFromServer(fileName=file)
+        if "osmosis" in file: # only testing osmo right now
+            utils.downloadAndDecompressXZFileFromServer(fileName=file)
 
     # save stake amount data to a a file
     for chain in files.keys():
         save_staked_amounts(files[chain], utils.getOutputFileName(chain))
 
-    if False: # Change to True to run osmosis logic
+    if True: # Change to True to run osmosis logic
         # saves osmosis balances & does the pool airdrop calculation
         save_balances(
             files['osmosis'], 
@@ -66,6 +67,7 @@ def main():
 
 def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
     output = ""
+    delegatorsWithBonuses = 0 # just for stats
     # totalAccounts = 0
     for idx, obj in stream_section(input_file, 'staked_amounts'):
         delegator = str(obj['delegator_address'])
@@ -80,16 +82,15 @@ def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
             # print(f"Skipping {delegator} because they are on a central exchange holder {valaddr}")
             continue
 
-        bonus = 1.0 # no bonus by default for now. Look back at notes for how to implement properly
+        bonus = 1.0 # no bonus by default. View git issue for how to impliment it right for other non core chains
         if valaddr in GENESIS_VALIDATORS.keys():
             bonus = GENESIS_VALIDATORS[valaddr] # 'akashvaloper1lxh0u07haj646pt9e0l2l4qc3d8htfx5kk698d': 1.2,
-    
-        if bonus > 1.0:
-            print(f"{delegator} would get a bonus of {bonus}x for delegating to genesis validator {valaddr}")
+            delegatorsWithBonuses += 1 # just for statistics
 
-        output += f"{delegator} {valaddr} {float(stake)}\n"
+        output += f"{delegator} {valaddr} {bonus} {float(stake)}\n"
 
     print(f"{idx} accounts processed from {input_file}")
+    print(f"{delegatorsWithBonuses=}")
     with open(output_file, 'w') as o:
         o.write(output)
 
@@ -135,7 +136,7 @@ def add_airdrop_to_account(craft_address, amount):
 
 def fairdrop_for_osmosis_pools():
     '''Group #2 - LPs for pool #1 and #561 (luna/osmo)'''
-    # TODO: POOL #1 & #561 (luna/osmo) - not done
+    # Should we divide these numbers by like 1billion to make pools easier to manage?
     
     filePath = "output/osmosis_balances.json"
     # Ensure output/osmosis_balances.json exists
