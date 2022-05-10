@@ -96,23 +96,24 @@ def main():
 
 
     # Runs: Group 1 Airdrop
-    from src.groups.Group1 import group1_stakers_with_genesis_bonus
-    # for chain in ["akash", "cosmos", "juno", "osmosis"]:
-    for chain in ["osmosis"]:
-        group1_stakers_with_genesis_bonus(chain, TOTAL_STAKED_TOKENS)        
+    # from src.groups.Group1 import group1_stakers_with_genesis_bonus
+    # # for chain in ["akash", "cosmos", "juno", "osmosis"]:
+    # for chain in ["osmosis"]:
+    #     group1_stakers_with_genesis_bonus(chain, TOTAL_STAKED_TOKENS)        
     
 
     # Group 2
-    if False: # Change to True to run osmosis logic
+    if True: # Change to True to run osmosis logic
         # saves osmosis balances & does the pool airdrop calculation
-        save_balances(
+        osmosisBalances = utils.save_osmosis_balances(
             files['osmosis'], 
             'output/osmosis_balances.json', 
             ignoreNonNativeIBCDenoms=True, 
             ignoreEmptyAccounts=True
-        )            
+        )       
+        # print(len(osmosisBalances))     
         group2_fairdrop_for_osmosis_pools() # group 2
-        group5_ION_holders_and_LPers()
+        # group5_ION_holders_and_LPers()
     # group3_atom_relayers()
 
 
@@ -201,9 +202,9 @@ def group5_ION_holders_and_LPers():
 
         for denom in osmosis_balances[address].keys():
 
-            if denom == "uion" or denom in CRAFT_ION_ALLOTMENT.keys():  
+            if denom in CRAFT_ION_ALLOTMENT.keys():  
                 balance = float(osmosis_balances[address][denom])
-                totalSupply = totalIONSupply[denom]
+                totalSupply = int(TOTAL_SUPPLY[denom])
 
                 percentOfTotalSupply = balance / totalSupply
                 theirAllotment = percentOfTotalSupply * CRAFT_ION_ALLOTMENT[denom]
@@ -293,6 +294,7 @@ def group2_fairdrop_for_osmosis_pools():
             # (totalSupplyForGivenPool*0.00002) = theirAllotmentOfCraft
             theirCraftAllotment = CRAFT_SUPPLY_FOR_POOLS[token] * theirPercentOwnership 
 
+            print(theirCraftAllotment, token)
             # DEBUG to ensure we are close to giving out ALL of the amount of CRAFT for each pool here
             totalCraftGivenActual[token] += theirCraftAllotment
 

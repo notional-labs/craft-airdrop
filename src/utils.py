@@ -192,11 +192,11 @@ def yield_staked_values(input_file):
             yield delegator, valaddr, bonus, ustake # ensure this matches up with save_staked_amounts() func
 
 
-def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uosmo", "uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "640"], ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True) -> dict:
+def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "gamm/pool/640"], ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True) -> dict:
     print(f"Saving balances to {output_file}. {ignoreNonNativeIBCDenoms=} {ignoreEmptyAccounts=}")
     print(f"Will return a dict of the following total supplies: {getTotalSuppliesOf}")
 
-    totalSupply = {str(denom).lower(): 0 for denom in getTotalSuppliesOf}
+    # totalSupply = {str(denom).lower(): 0 for denom in getTotalSuppliesOf}
 
     accounts = {}
     for idx, obj in stream_section(input_file, 'account_balances'):
@@ -211,8 +211,8 @@ def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uosmo", 
             if ignoreNonNativeIBCDenoms and str(denom).startswith('ibc/'):
                 continue # ignore any non native ibc tokens held by the account
 
-            if denom in totalSupply.keys():
-                totalSupply[denom] += float(amount) # uion, and 4 pools which are ion based. used in group 5
+            # if denom in totalSupply.keys():
+            #     totalSupply[denom] += float(amount) # uion, and 4 pools which are ion based. used in group 5
 
             outputCoins[denom] = amount # {'uion': 1000000, 'uosmo': 1000000}
 
@@ -227,11 +227,8 @@ def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uosmo", 
     print(f"{idx} accounts processed from {input_file}")
     with open(output_file, 'w') as o:
         o.write(json.dumps(accounts))
-
-    with open("supply/OSMOSIS_TOTAL_SUPPLY", 'w') as o:
-        o.write(json.dumps(accounts))
     
-    return totalSupply
+    return accounts
 
 import src.utils as utils
 def get_total_supply__of_chains(files=[], denomsWeWant=[]):
