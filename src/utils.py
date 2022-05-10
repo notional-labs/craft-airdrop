@@ -194,6 +194,7 @@ def yield_staked_values(input_file):
 
 # getTotalSuppliesOf=["uosmo", "uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "gamm/pool/151"]
 def save_osmosis_balances(input_file, output_file, ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True) -> dict:
+    # excludes uosmo
     print(f"Saving balances to {output_file}. {ignoreNonNativeIBCDenoms=} {ignoreEmptyAccounts=}")
     # print(f"Will return a dict of the following total supplies: {getTotalSuppliesOf}")
 
@@ -217,8 +218,8 @@ def save_osmosis_balances(input_file, output_file, ignoreNonNativeIBCDenoms=True
             if ignoreNonNativeIBCDenoms and str(denom).startswith('ibc/'):
                 continue # ignore any non native ibc tokens held by the account
 
-            # if denom not in getTotalSuppliesOf:
-            #     continue # skip balances we dont care about
+            if denom == "uosmo":
+                continue
 
             outputCoins[denom] = amount # {'uion': 1000000, 'uosmo': 1000000}
 

@@ -87,9 +87,8 @@ def main():
     # Save stated data in format: 
     # chainAddr validatorAddr bonusMulitplier amountOfUTokenDelegated
     # This makes it easier for us to iterate & see + smaller than the full export
-    for chain in files.keys():        
-        utils.save_staked_amounts(files[chain], utils.getOutputFileName(chain, extension=".txt")) # Should we save as json?
-
+    # for chain in files.keys():        
+    #     utils.save_staked_amounts(files[chain], utils.getOutputFileName(chain, extension=".txt")) # Should we save as json?
 
     # Runs: Group 1 Airdrop
     # from src.groups.Group1 import group1_stakers_with_genesis_bonus
@@ -101,7 +100,7 @@ def main():
     if True: # Change to True to run osmosis logic
         # saves osmosis balances & does the pool airdrop calculation        
 
-        # TODO: Fix this to actually work again
+        # TODO: Why si this not saving correctly anymore?
         osmosisBalances = utils.save_osmosis_balances(
             files['osmosis'], 
             'output/osmosis_balances.json', 
@@ -109,11 +108,14 @@ def main():
             ignoreEmptyAccounts=True
         )            
 
+        tally = 0
         for acc in osmosisBalances:
             balances = osmosisBalances[acc]
             for b in balances:
-                if b in ['gamm/pool/2']:
-                    print(acc, b, balances[b])
+                if b in ['gamm/pool/2', 'game/pool/561']:
+                    tally += 1
+                    # print(acc, b, balances[b])
+        print(tally)
 
         # group2_fairdrop_for_osmosis_pools(osmosisBalances, TOTAL_SUPPLY) # group 2
         # group5_ION_holders_and_LPers()
