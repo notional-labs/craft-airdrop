@@ -48,7 +48,7 @@ def main():
     # list of denoms we want to track the total supply of for all the chainsd
     denomsWeWant = [
         'uakt', 'ujuno', 'uatom', 'uosmo',  # core chains
-        'uion', 'gamm/pool/1', 'gamm/pool/2', 'gamm/pool/151', 'gamm/pool/630', 'gamm/pool/640', # osmosis LP and ION holder / LP groups
+        'uion', 'gamm/pool/1', 'gamm/pool/2', 'gamm/pool/151', 'gamm/pool/630', 'gamm/pool/640', 'gamm/pool/561', # osmosis LP and ION holder / LP groups
     ]
 
     files = {
@@ -107,7 +107,7 @@ def main():
             ignoreEmptyAccounts=True
         )       
         # print(len(osmosisBalances))     
-        group2_fairdrop_for_osmosis_pools() # group 2
+        group2_fairdrop_for_osmosis_pools(osmosisBalances, TOTAL_SUPPLY) # group 2
         # group5_ION_holders_and_LPers()
     # group3_atom_relayers()
 
@@ -268,10 +268,13 @@ def group2_fairdrop_for_osmosis_pools(osmosisBalances: dict, TOTAL_SUPPLY: dict)
         "gamm/pool/1": 1_000_000, # Move these into airdrop data
         "gamm/pool/561": 1_500_000
     }
-    
+
+    reset_craft_airdrop_temp_dict()
 
     # DEBUGGING - just to check that this is close to CRAFT_SUPPLY_FOR_POOLS total
     totalCraftGivenActual = { "gamm/pool/1": 0, "gamm/pool/561": 0}
+
+    accounts = {}
 
     for address in osmosisBalances.keys():
         coins = osmosisBalances[address]
@@ -279,40 +282,36 @@ def group2_fairdrop_for_osmosis_pools(osmosisBalances: dict, TOTAL_SUPPLY: dict)
 
         for coin in coins.keys():
             if coin in ["gamm/pool/1", "gamm/pool/561"]:
-                balance = float(coins[coin])
-                print(f"{address} has {balance} {coin}")
+                # print(f"{address} has {balance} {coin}")
 
-        for coin in ["gamm/pool/1", "gamm/pool/561"]:            
-            if coin not in coins.keys():
-                continue 
+                # A users LP Token Share
+                tokenAmount = int(coins[coin])
+                if tokenAmount == 0:
+                    continue
 
-            # A users LP Token Share
-            tokenAmount = int(coins[coin])
-            if tokenAmount == 0:
-                continue
+                if coin not in TOTAL_SUPPLY:
+                    print(f"{coin} not in TOTAL_SUPPLY")
+                    exit()
 
-            # decimal percent -> ex 0.00002
-            theirPercentOwnership = (tokenAmount / int(TOTAL_SUPPLY[coin])) 
+                # decimal percent -> ex 0.00002
+                theirPercentOwnership = (tokenAmount / int(TOTAL_SUPPLY[coin])) 
 
-            # (totalSupplyForGivenPool*0.00002) = theirAllotmentOfCraft
-            theirCraftAllotment = CRAFT_SUPPLY_FOR_POOLS[coin] * theirPercentOwnership 
+                # (totalSupplyForGivenPool*0.00002) = theirAllotmentOfCraft
+                theirCraftAllotment = CRAFT_SUPPLY_FOR_POOLS[coin] * theirPercentOwnership 
 
-            print(theirCraftAllotment, token)
-            # DEBUG to ensure we are close to giving out ALL of the amount of CRAFT for each pool here
-            totalCraftGivenActual[token] += theirCraftAllotment
+                # DEBUG to ensure we are close to giving out ALL of the amount of CRAFT for each pool here
+                totalCraftGivenActual[coin] += theirCraftAllotment
 
-            # Saved as ucraft
-            add_airdrop_to_craft_account(address, theirCraftAllotment * 1_000_000)
+                # Saved as ucraft
+                add_airdrop_to_craft_account(address, theirCraftAllotment * 1_000_000)
 
 
     # save each osmo addresses % of the given pool based on the total supply
     # This will be easier to just do theirPercent*totalCraftSupplyForGroup2 = Their craft
     with open("final/Group2_LP_Pools_Craft_Amounts.json", 'w') as o:
         o.write(json.dumps(craft_airdrop_amounts))
-    
-    reset_craft_airdrop_temp_dict()
 
-    print(f":::LPs:::\nNumber of unique wallets providing liquidity to #1 & #561: {len(osmosisBalances)}")
+    print(f":::LPs:::\nNumber of unique wallets providing liquidity to #1 & #561: {len(craft_airdrop_amounts)}")
     # print(f"Total supply: {totalSupply}")
     print(f"Total craft given: {totalCraftGivenActual=} out of {CRAFT_SUPPLY_FOR_POOLS=}")
 

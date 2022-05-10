@@ -197,8 +197,6 @@ def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uion", "
     # print(f"Will return a dict of the following total supplies: {getTotalSuppliesOf}")
 
     # totalSupply = {str(denom).lower(): 0 for denom in getTotalSuppliesOf}
-
-    # totalSupply = {str(denom).lower(): 0 for denom in getTotalSuppliesOf}
     accounts = {}
 
     for idx, obj in stream_section(input_file, 'account_balances'):
