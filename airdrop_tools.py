@@ -39,11 +39,9 @@ totalAtomRelayersTokens = 0
 
 TOTAL_SUPPLY = {} 
 
-TOTAL_STAKED_TOKENS = {} # per chain
-
 def main():
     global TOTAL_SUPPLY
-    global TOTAL_STAKED_TOKENS 
+    global totalStakedUTokens # This needed anymore?
     # makes exports & output directories
     utils.createDefaultPathsIfNotExisting()
 
@@ -53,10 +51,6 @@ def main():
         'uion', 'gamm/pool/1', 'gamm/pool/2', 'gamm/pool/151', 'gamm/pool/630', 'gamm/pool/640', # osmosis LP and ION holder / LP groups
     ]
 
-    DENOMS = {
-        "osmosis": 'uosmo'
-    }
-
     files = {
         "osmosis": "exports/osmosis_export.json",
         # "akash": "exports/akash_export.json",
@@ -64,36 +58,37 @@ def main():
         # "juno": "exports/juno_export.json",
     }
     # otherChains = {"huahua": "exports/huahua_export.json"} 
-
+    
     ## Downloads files to exports dir if not already downloaded AND is in files
     for file in utils.getExportsOnWebsiteIndex(chainsRequested=list(files.keys())):
-        utils.downloadAndDecompressXZFileFromServer(fileName=file, debug=True)
+        # print(f"[!] Downloading {file}")
+        utils.downloadAndDecompressXZFileFromServer(fileName=file)
 
-    # saves total supply of export chains & denomsWeWant to final/total_supply.json
-    TOTAL_SUPPLY = utils.get_total_supply__of_chains(files=list(files.values()), denomsWeWant=denomsWeWant)
+    # Gets the total supply of ALL chains including LPs if in denomsWeWant=[] list
+    # Or uses a cached version if that is avaliable.
+    if os.path.isfile("final/total_supply.json"):
+        with open("final/total_supply.json", 'r') as f:
+            TOTAL_SUPPLY = json.load(f)
+            print("Loaded TOTAL_SUPPLY from cached file")
+    else:
+        for chain in files.keys():
+            print("Getting total supply for chain: ", chain)
+            for idx, supply in utils.stream_section(files[chain], "total_supply"):
+                denom = supply['denom']
+                if denom in denomsWeWant:
+                    TOTAL_SUPPLY[denom] = supply['amount']    
+        with open("final/total_supply.json", 'w') as o:
+            o.write(json.dumps(TOTAL_SUPPLY))
     print(f"{TOTAL_SUPPLY=}")
     # / End of total supply logic. Could be moved to another class
+
+
 
     # Save stated data in format: 
     # chainAddr validatorAddr bonusMulitplier amountOfUTokenDelegated
     # This makes it easier for us to iterate & see + smaller than the full export
-    # & save total staked for the network
-    if os.path.isfile("final/staking_tokens.json"):
-        with open("final/staking_tokens.json", 'r') as f:
-            TOTAL_STAKED_TOKENS = json.load(f)
-            print("Loaded staked tokens from cache " + str(TOTAL_STAKED_TOKENS))
-    else:
-        for chain in files.keys():        
-            # Should we save as json?
-            totalTokensStaked = utils.save_staked_amounts(files[chain], utils.getOutputFileName(chain, extension=".txt"))
-            denom = DENOMS[chain]
-            TOTAL_STAKED_TOKENS[denom] = totalTokensStaked   
-
-        print(f"{TOTAL_STAKED_TOKENS=}")
-        with open("final/staking_tokens.json", 'w') as o:
-            o.write(json.dumps(TOTAL_STAKED_TOKENS))
-    # end of loading total staked tokens for our main chains
-
+    # for chain in files.keys():        
+    #     utils.save_staked_amounts(files[chain], utils.getOutputFileName(chain, extension=".txt")) # Should we save as json?
 
     # Runs: Group 1 Airdrop
     # from src.groups.Group1 import group1_stakers_with_genesis_bonus
@@ -258,16 +253,15 @@ def reset_craft_airdrop_temp_dict():
     craft_airdrop_amounts = {}
 
 # TODO: Merge group 5 ION LPs in here too? If so osmosis_get_all_LP_providers needs to add their pools as well
-def group2_fairdrop_for_osmosis_pools():
+def group2_fairdrop_for_osmosis_pools(osmosisBalances: dict, TOTAL_SUPPLY: dict):
     '''Group #2 - LPs for pool #1 and #561 (luna/osmo)'''
 
-    filePath = "output/osmosis_balances.json" 
-
+    # filePath = "output/osmosis_balances.json" 
     # FORMAT: poolHolder in file: {"osmoaddress": {"gamm/pool/1": 0, "gamm/pool/561": 0}, {...}}
     # FORMAT: totalSupply in file: {"gamm/pool/1": 0, "gamm/pool/561": 0}
-    totalSupply, poolHolders = osmosis_get_all_LP_providers(filePath)    
-    if totalSupply == {}: # filePath doesn't exist yet
-        return
+    # totalSupply, poolHolders = osmosis_get_all_LP_providers(filePath)    
+    # if totalSupply == {}: # filePath doesn't exist yet
+    #     return
 
     CRAFT_SUPPLY_FOR_POOLS = { 
         # TODO: change this with bean based on which rates we give each. move into airdrop_data file.
@@ -279,20 +273,29 @@ def group2_fairdrop_for_osmosis_pools():
     # DEBUGGING - just to check that this is close to CRAFT_SUPPLY_FOR_POOLS total
     totalCraftGivenActual = { "gamm/pool/1": 0, "gamm/pool/561": 0}
 
-    for address in poolHolders.keys():
-        # usersPoolPercent = {"gamm/pool/1": 0, "gamm/pool/561": 0}
+    for address in osmosisBalances.keys():
+        coins = osmosisBalances[address]
+        # print(coins)
 
-        for token in ["gamm/pool/1", "gamm/pool/561"]:
+        for coin in coins.keys():
+            if coin in ["gamm/pool/1", "gamm/pool/561"]:
+                balance = float(coins[coin])
+                print(f"{address} has {balance} {coin}")
+
+        for coin in ["gamm/pool/1", "gamm/pool/561"]:            
+            if coin not in coins.keys():
+                continue 
+
             # A users LP Token Share
-            tokenAmount = int(poolHolders[address][token])
+            tokenAmount = int(coins[coin])
             if tokenAmount == 0:
                 continue
 
             # decimal percent -> ex 0.00002
-            theirPercentOwnership = (tokenAmount / int(totalSupply[token])) 
+            theirPercentOwnership = (tokenAmount / int(TOTAL_SUPPLY[coin])) 
 
             # (totalSupplyForGivenPool*0.00002) = theirAllotmentOfCraft
-            theirCraftAllotment = CRAFT_SUPPLY_FOR_POOLS[token] * theirPercentOwnership 
+            theirCraftAllotment = CRAFT_SUPPLY_FOR_POOLS[coin] * theirPercentOwnership 
 
             print(theirCraftAllotment, token)
             # DEBUG to ensure we are close to giving out ALL of the amount of CRAFT for each pool here
@@ -300,9 +303,6 @@ def group2_fairdrop_for_osmosis_pools():
 
             # Saved as ucraft
             add_airdrop_to_craft_account(address, theirCraftAllotment * 1_000_000)
-
-            # if token == "gamm/pool/561": # DEBUG
-            #     print(f"{address}'s {token} -> {theirCRAFTForThisGroup}craft")
 
 
     # save each osmo addresses % of the given pool based on the total supply
@@ -312,8 +312,8 @@ def group2_fairdrop_for_osmosis_pools():
     
     reset_craft_airdrop_temp_dict()
 
-    print(f":::LPs:::\nNumber of unique wallets providing liquidity to #1 & #561: {len(poolHolders)}")
-    print(f"Total supply: {totalSupply}")
+    print(f":::LPs:::\nNumber of unique wallets providing liquidity to #1 & #561: {len(osmosisBalances)}")
+    # print(f"Total supply: {totalSupply}")
     print(f"Total craft given: {totalCraftGivenActual=} out of {CRAFT_SUPPLY_FOR_POOLS=}")
 
 # used in above function. 

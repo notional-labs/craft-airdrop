@@ -194,11 +194,13 @@ def yield_staked_values(input_file):
 
 def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "gamm/pool/640"], ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True) -> dict:
     print(f"Saving balances to {output_file}. {ignoreNonNativeIBCDenoms=} {ignoreEmptyAccounts=}")
-    print(f"Will return a dict of the following total supplies: {getTotalSuppliesOf}")
+    # print(f"Will return a dict of the following total supplies: {getTotalSuppliesOf}")
 
     # totalSupply = {str(denom).lower(): 0 for denom in getTotalSuppliesOf}
 
+    # totalSupply = {str(denom).lower(): 0 for denom in getTotalSuppliesOf}
     accounts = {}
+
     for idx, obj in stream_section(input_file, 'account_balances'):
         address = str(obj['address'])
         coins = obj['coins']
