@@ -39,9 +39,11 @@ totalAtomRelayersTokens = 0
 
 TOTAL_SUPPLY = {} 
 
+TOTAL_STAKED_TOKENS = {} # per chain
+
 def main():
     global TOTAL_SUPPLY
-    global totalStakedUTokens # This needed anymore?
+    global TOTAL_STAKED_TOKENS 
     # makes exports & output directories
     utils.createDefaultPathsIfNotExisting()
 
@@ -51,49 +53,53 @@ def main():
         'uion', 'gamm/pool/1', 'gamm/pool/2', 'gamm/pool/151', 'gamm/pool/630', 'gamm/pool/640', # osmosis LP and ION holder / LP groups
     ]
 
+    DENOMS = {
+        "osmosis": 'uosmo'
+    }
+
     files = {
         "osmosis": "exports/osmosis_export.json",
-        "akash": "exports/akash_export.json",
-        "cosmos": "exports/cosmos_export.json",
-        "juno": "exports/juno_export.json",
+        # "akash": "exports/akash_export.json",
+        # "cosmos": "exports/cosmos_export.json",
+        # "juno": "exports/juno_export.json",
     }
     # otherChains = {"huahua": "exports/huahua_export.json"} 
-    
+
     ## Downloads files to exports dir if not already downloaded AND is in files
     for file in utils.getExportsOnWebsiteIndex(chainsRequested=list(files.keys())):
-        # print(f"[!] Downloading {file}")
-        utils.downloadAndDecompressXZFileFromServer(fileName=file)
+        utils.downloadAndDecompressXZFileFromServer(fileName=file, debug=True)
 
-    # Gets the total supply of ALL chains including LPs if in denomsWeWant=[] list
-    # Or uses a cached version if that is avaliable.
-    if os.path.isfile("final/total_supply.json"):
-        with open("final/total_supply.json", 'r') as f:
-            TOTAL_SUPPLY = json.load(f)
-            print("Loaded TOTAL_SUPPLY from cached file")
-    else:
-        for chain in files.keys():
-            print("Getting total supply for chain: ", chain)
-            for idx, supply in utils.stream_section(files[chain], "total_supply"):
-                denom = supply['denom']
-                if denom in denomsWeWant:
-                    TOTAL_SUPPLY[denom] = supply['amount']    
-        with open("final/total_supply.json", 'w') as o:
-            o.write(json.dumps(TOTAL_SUPPLY))
+    # saves total supply of export chains & denomsWeWant to final/total_supply.json
+    TOTAL_SUPPLY = utils.get_total_supply__of_chains(files=list(files.values()), denomsWeWant=denomsWeWant)
     print(f"{TOTAL_SUPPLY=}")
     # / End of total supply logic. Could be moved to another class
-
-
 
     # Save stated data in format: 
     # chainAddr validatorAddr bonusMulitplier amountOfUTokenDelegated
     # This makes it easier for us to iterate & see + smaller than the full export
-    for chain in files.keys():        
-        utils.save_staked_amounts(files[chain], utils.getOutputFileName(chain, extension=".txt")) # Should we save as json?
+    # & save total staked for the network
+    if os.path.isfile("final/staking_tokens.json"):
+        with open("final/staking_tokens.json", 'r') as f:
+            TOTAL_STAKED_TOKENS = json.load(f)
+            print("Loaded staked tokens from cache " + str(TOTAL_STAKED_TOKENS))
+    else:
+        for chain in files.keys():        
+            # Should we save as json?
+            totalTokensStaked = utils.save_staked_amounts(files[chain], utils.getOutputFileName(chain, extension=".txt"))
+            denom = DENOMS[chain]
+            TOTAL_STAKED_TOKENS[denom] = totalTokensStaked   
+
+        print(f"{TOTAL_STAKED_TOKENS=}")
+        with open("final/staking_tokens.json", 'w') as o:
+            o.write(json.dumps(TOTAL_STAKED_TOKENS))
+    # end of loading total staked tokens for our main chains
+
 
     # Runs: Group 1 Airdrop
     from src.groups.Group1 import group1_stakers_with_genesis_bonus
-    for chain in ["akash", "cosmos", "juno", "osmosis"]:
-        group1_stakers_with_genesis_bonus(chain, TOTAL_SUPPLY)        
+    # for chain in ["akash", "cosmos", "juno", "osmosis"]:
+    for chain in ["osmosis"]:
+        group1_stakers_with_genesis_bonus(chain, TOTAL_STAKED_TOKENS)        
     
 
     # Group 2

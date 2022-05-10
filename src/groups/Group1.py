@@ -4,7 +4,7 @@ import json
 import src.utils as utils
 import os
 
-def group1_stakers_with_genesis_bonus(chainName, TOTAL_SUPPLY: dict):
+def group1_stakers_with_genesis_bonus(chainName, TOTAL_STAKED: dict):
     '''Group 1: Stakers and Genesis Bonus for Akash, Osmosis, Cosmos, Juno'''
     print(f"\n\tRunning Group 1  airdrop for {chainName}")
 
@@ -42,8 +42,8 @@ def group1_stakers_with_genesis_bonus(chainName, TOTAL_SUPPLY: dict):
     # Gets the total supply from startup, while this is not the best it works
     if chainName in DENOMS:
         denom = DENOMS[chainName]
-        print(f"Denom: {denom}")
-        totalTokensStakedForChain = int(TOTAL_SUPPLY[denom])
+        # print(f"Denom: {denom}")
+        totalTokensStakedForChain = int(TOTAL_STAKED[denom])
         print(f"Total {denom} staked for {chainName}: {totalTokensStakedForChain}.")
     else:
         print(f"[!] Chain name not found. Exiting... {DENOMS=}" )
@@ -61,8 +61,7 @@ def group1_stakers_with_genesis_bonus(chainName, TOTAL_SUPPLY: dict):
         bonus = float(bonus)
         if bonus > 1.0:                        
             ACTUAL_BONUS_GIVEN += (theirAllotment*bonus) # debug
-
-            theirAllotment = theirAllotment*bonus # since we save 1.0 bonuses, we could just do this. For now here to debug
+            theirAllotment = theirAllotment*bonus # just so we can know how much bonus is given out
             # print(f"{theirAllotment} for {theirPercentOfAllStaked} of {totalStakedUTokens[chainName]} with bonus")
 
         # saving as ucraft for them
@@ -75,6 +74,7 @@ def group1_stakers_with_genesis_bonus(chainName, TOTAL_SUPPLY: dict):
 
     print(f"{chainName} airdrop - ALLOTMENT: {CRAFT_ALLOTMENTS[chainName]}")
     print(f"GIVEN EXCLUDING BONUS: {ACTUAL_ALLOTMENT_GIVEN} + BONUSES: {ACTUAL_BONUS_GIVEN} = {ACTUAL_ALLOTMENT_GIVEN + ACTUAL_BONUS_GIVEN} TOTAL")
+    print(f"Difference for actuals: {CRAFT_ALLOTMENTS[chainName] - ACTUAL_ALLOTMENT_GIVEN} (This should be as close to 0 as possible)")
 
 
 
