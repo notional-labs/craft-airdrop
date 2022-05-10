@@ -7,7 +7,7 @@ import ijson
 
 from tqdm import tqdm
 
-requiredDirs = ["output", "exports", "final"] # auto created
+requiredDirs = ["output", "exports", "final", "supply", "balances", "staked"] # auto created
 
 sections = { 
     # locations within the genesis file
@@ -37,8 +37,8 @@ def stream_section(fileName, key, debug=False):
 
 
 def convert_address_to_craft(address) -> str:
-    if address.startswith('0x'):
-        return None  # TODO: DIG 0x addresses? how do we convert to beh32. Gravity bridge too?
+    if address.startswith('0x') or address.startswith('gravity'):
+        return address # Can't convert non 118 cointype
     _, data = bech32.bech32_decode(address)
     return bech32.bech32_encode('craft', data)
 
@@ -47,14 +47,6 @@ def createDefaultPathsIfNotExisting():
     for dir in requiredDirs:
         if not os.path.exists(dir):
             os.mkdir(dir)
-
-def getOutputFileName(chain_name, reason="staking_values", extension="json"):
-    if extension.startswith("."):
-        extension = extension[1:]
-    return f"output/{chain_name}_{reason}.{extension}"
-
-
-
 
 
 def getExportsOnWebsiteIndex(link="https://reece.sh/exports/index.html", extensions="(.*xz)", chainsRequested=[]) -> list:
@@ -68,13 +60,10 @@ def getExportsOnWebsiteIndex(link="https://reece.sh/exports/index.html", extensi
     l = list(f for f in (serverFiles))
     
     if l == None: l = []
-
     # print(chainsRequested)
-
     if chainsRequested == []:
         yield []
 
-    
     for filename in l:
         for c in chainsRequested:
             if c in filename:
@@ -90,14 +79,8 @@ def downloadAndDecompressXZFileFromServer(baseLink="https://reece.sh/exports", f
         return
 
     os.chdir("exports")
-    
-    # response = requests.get(baseLink + "/" + fileName, stream=True)
-    # with open(fileName, 'wb') as f:
-        # f.write(response.content)
-
     print(f"\n [!] Downloading {fileName}...")
     download(baseLink + "/" + fileName, fileName)
-    print(f"Downloaded {fileName}!\nDecompressing....")
 
     # decompress the xz file
     os.system(f"xz -d {fileName}")
@@ -118,6 +101,7 @@ def download(url, fname):
         for data in resp.iter_content(chunk_size=1024):
             size = file.write(data)
             bar.update(size)
+    print(f"Downloaded {fname}")
 
 
 
@@ -127,69 +111,92 @@ def download(url, fname):
 from src.airdrop_data import ATOM_RELAYERS, BLACKLISTED_CENTRAL_EXCHANGES, GENESIS_VALIDATORS
 import json
 
-# Just for atom relayers validators. Is only increased if the input file has 'cosmos' in it ($ATOM)
-totalAtomRelayersTokens = 0
-
 # Required for every chain we use
-def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True) -> int:
-    global totalAtomRelayersTokens
+def saveStakedUsers(
+    input_file="exports/chain.json", output_file="staked/chain.json", 
+    excludeCentralExchanges=True, doBonusesForGenesisValidators=True) -> dict:
     '''
-    Returns total supply of staked tokens for this chain network
+    Saves all Validators, some stats, and their delegators:
+    {
+        "osmovaloperxxxxxxxxx": {
+            "stats": {
+                "total_stake": "200.0",
+            },
+            "delegators": {
+                "delegator1": 
+                    {
+                        "amount": 100.0,
+                        "bonus": 1.2, # means they get 1.2x their staked amount. 1.0 if no bonus
+                    }
+                "delegator2": 100.0,
+            }
+        },
+    }
+    Returns a dict of information
     '''
-    if os.path.isfile(output_file):
-        print(f"[!] {output_file} already exists, skipping")
-        return -1
 
     print(f"Saving staked amounts to {output_file}. {excludeCentralExchanges=}")
-    totalStaked = 0
-    output = ""
-    delegatorsWithBonuses = 0 # just for stats
+
+    # delegatorsWithBonuses = 0 # just for stats
+    totalStakedOnChain = 0
+    totalBonusAmount = 0
+    STAKED_VALUES = {}
+    numberOfUniqueDelegators = set()
 
     for idx, obj in stream_section(input_file, 'staked_amounts'):
         delegator = str(obj['delegator_address'])
         valaddr = str(obj['validator_address'])
-        stake = str(obj['shares'])   
+        stake = float(obj['shares'])  
+        bonus = 1.0 
+        if idx % 50_000 == 0: print(f"{idx} staking accounts processing...")
 
-        totalStaked += float(stake)
+        if excludeCentralExchanges and valaddr in BLACKLISTED_CENTRAL_EXCHANGES:
+            continue # skip the central exchange since this is their validator address
 
-        # for group 3 atom relayers
-        if 'cosmos' in input_file and valaddr in ATOM_RELAYERS.keys():
-            totalAtomRelayersTokens += float(stake)
-
-        if idx % 50_000 == 0:
-            print(f"{idx} staking accounts processing...")
-
-        if excludeCentralExchanges == True and valaddr in BLACKLISTED_CENTRAL_EXCHANGES:
-            # print(f"Skipping {delegator} because they are on a central exchange holder {valaddr}")
-            continue
-
-        bonus = 1.0 # no bonus by default. View git issue for how to impliment it right for other non core chains
-        if valaddr in GENESIS_VALIDATORS.keys():
+        if doBonusesForGenesisValidators and valaddr in GENESIS_VALIDATORS.keys():
             bonus = GENESIS_VALIDATORS[valaddr] # 'akashvaloper1lxh0u07haj646pt9e0l2l4qc3d8htfx5kk698d': 1.2,
+            totalBonusAmount += (stake * (bonus-1.0)) # statistics
             delegatorsWithBonuses += 1 # just for statistics
 
-        output += f"{delegator} {valaddr} {bonus} {float(stake)}\n"
+        if valaddr not in STAKED_VALUES:
+            STAKED_VALUES[valaddr] = {"stats": {"total_stake": 0}, "delegators": {}}
 
-    # print(f"{idx} staking accounts processed from {input_file}")
+        STAKED_VALUES[valaddr]["stats"]["total_stake"] += stake
+        STAKED_VALUES[valaddr]["delegators"][delegator] = {"ustake": stake, "bonusMultiplier": bonus}
+        numberOfUniqueDelegators.add(delegator) # only adds unique user addresses to set
+
+        totalStakedOnChain += stake
+
+        # output += f"{delegator} {valaddr} {bonus} {float(stake)}\n"
+
     print(f"{delegatorsWithBonuses=}\n")
     with open(output_file, 'w') as o:
-        o.write(output)
+        o.write(json.dump(STAKED_VALUES))
     
-    if totalAtomRelayersTokens > 0:
-        # atom relayers total supply held by all their validators
-        print(f"Total atom relayers tokens: {totalAtomRelayersTokens}")
-        with open("final/atom_relayers_tokens.txt", 'w') as o:
-            o.write(f"{totalAtomRelayersTokens}")
+    print(f"Saved {len(STAKED_VALUES)} validators and {len(numberOfUniqueDelegators)} delegators to {output_file}")
+    return {
+        "total_staked": totalStakedOnChain, 
+        "number_of_validators": len(STAKED_VALUES.keys()),
+        "number_of_unique_delegators": len(numberOfUniqueDelegators)
+    }
 
-    return totalStaked
 
+def yield_staked_values(stakedUsersInputFile="staked/chain.json"):
+    # with open(stakedUsersInputFile, 'r') as f:
+    #     for line in f:
+    #         line = line.strip()
+    #         delegator, valaddr, bonus, ustake = line.split(' ')
+    #         yield delegator, valaddr, bonus, ustake # ensure this matches up with save_staked_amounts() func
 
-def yield_staked_values(input_file):
-    with open(input_file, 'r') as f:
-        for line in f:
-            line = line.strip()
-            delegator, valaddr, bonus, ustake = line.split(' ')
-            yield delegator, valaddr, bonus, ustake # ensure this matches up with save_staked_amounts() func
+    with open(stakedUsersInputFile, 'r') as f:
+        data = json.load(f) # Do we need to stream it?
+
+    for validator in data.keys():
+        delegators = data[validator]["delegators"]
+        for delegate in delegators.keys():
+            amount = float(delegators[delegate]["amount"])
+            bonus = float(delegators[delegate]["bonus"])
+            yield {"delegator": delegate, "validator": validator, "ustake": amount, "bonusMultiplier": bonus}
 
 
 def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "gamm/pool/640"], ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True) -> dict:
