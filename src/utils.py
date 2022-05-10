@@ -11,12 +11,12 @@ requiredDirs = ["output", "exports", "final"] # auto created
 
 sections = { 
     # locations within the genesis file
-    # for ijson, every section MUST end with .items to grab the values
+    # for ijson, every section MUST end with .item to grab the values
     "staked_amounts": "app_state.staking.delegations.item",
     "account_balances": "app_state.bank.balances.item",
     "total_supply": "app_state.bank.supply.item",
 }    
-def stream_section(fileName, key):
+def stream_section(fileName, key, debug=False):
     '''
         Given a fileName and a json key location,
         it will stream the jso objects in that section 
@@ -32,7 +32,7 @@ def stream_section(fileName, key):
     with open(fileName, 'rb') as input_file:
         parser = ijson.items(input_file, key)
         for idx, obj in enumerate(parser):
-            # print(f"stream_section: {idx}: {obj}")
+            if debug: print(f"stream_section: {idx}: {obj}")
             yield idx, obj
 
 
@@ -95,7 +95,7 @@ def downloadAndDecompressXZFileFromServer(baseLink="https://reece.sh/exports", f
     # with open(fileName, 'wb') as f:
         # f.write(response.content)
 
-    print(f"Downloading {fileName}...")
+    print(f"\n [!] Downloading {fileName}...")
     download(baseLink + "/" + fileName, fileName)
     print(f"Downloaded {fileName}!\nDecompressing....")
 
@@ -131,20 +131,17 @@ import json
 totalAtomRelayersTokens = 0
 
 # Required for every chain we use
-def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
+def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True) -> int:
     global totalAtomRelayersTokens
     '''
     Returns total supply of staked tokens for this chain network
     '''
-
-    # check if output file exists
     if os.path.isfile(output_file):
         print(f"[!] {output_file} already exists, skipping")
-        return
-
+        return -1
 
     print(f"Saving staked amounts to {output_file}. {excludeCentralExchanges=}")
-    # totalStaked = 0
+    totalStaked = 0
     output = ""
     delegatorsWithBonuses = 0 # just for stats
 
@@ -153,7 +150,7 @@ def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
         valaddr = str(obj['validator_address'])
         stake = str(obj['shares'])   
 
-        # totalStaked += float(stake)
+        totalStaked += float(stake)
 
         # for group 3 atom relayers
         if 'cosmos' in input_file and valaddr in ATOM_RELAYERS.keys():
@@ -177,6 +174,14 @@ def save_staked_amounts(input_file, output_file, excludeCentralExchanges=True):
     print(f"{delegatorsWithBonuses=}\n")
     with open(output_file, 'w') as o:
         o.write(output)
+    
+    if totalAtomRelayersTokens > 0:
+        # atom relayers total supply held by all their validators
+        print(f"Total atom relayers tokens: {totalAtomRelayersTokens}")
+        with open("final/atom_relayers_tokens.txt", 'w') as o:
+            o.write(f"{totalAtomRelayersTokens}")
+
+    return totalStaked
 
 
 def yield_staked_values(input_file):
@@ -185,7 +190,6 @@ def yield_staked_values(input_file):
             line = line.strip()
             delegator, valaddr, bonus, ustake = line.split(' ')
             yield delegator, valaddr, bonus, ustake # ensure this matches up with save_staked_amounts() func
-
 
 
 def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uosmo", "uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "640"], ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True) -> dict:
@@ -228,3 +232,25 @@ def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uosmo", 
         o.write(json.dumps(accounts))
     
     return totalSupply
+
+import src.utils as utils
+def get_total_supply__of_chains(files=[], denomsWeWant=[]):
+    temp_Total_Supply = {}
+
+    # Gets the total supply of ALL chains including LPs if in denomsWeWant=[] list
+    # Or uses a cached version if that is avaliable.
+    if os.path.isfile("final/total_supply.json"):
+        with open("final/total_supply.json", 'r') as f:
+            temp_Total_Supply = json.load(f)
+            print("Loaded TOTAL_SUPPLY from cached file")
+    else:
+        for fileName in files:
+            print("Getting total supply for chain: ", fileName)
+            for idx, supply in utils.stream_section(fileName, "total_supply"):
+                denom = supply['denom']
+                if denom in denomsWeWant: # denoms we want to save to file for tracking totalSupply
+                    temp_Total_Supply[denom] = supply['amount']    
+        with open("final/total_supply.json", 'w') as o:
+            o.write(json.dumps(temp_Total_Supply, indent=4))
+
+    return temp_Total_Supply # save this to main()
