@@ -53,15 +53,18 @@ def main():
         'uion', 'gamm/pool/1', 'gamm/pool/2', 'gamm/pool/151', 'gamm/pool/630', 'gamm/pool/640', # osmosis LP and ION holder / LP groups
     ]
 
-    DENOMS = {
-        "osmosis": 'uosmo'
+    DENOMS = { # same key names here as "files" variable has
+        "osmosis": 'uosmo',
+        "juno": 'ujuno',
+        "akash": 'uakt',
+        "cosmos": 'uatom',
     }
 
     files = {
         "osmosis": "exports/osmosis_export.json",
-        # "akash": "exports/akash_export.json",
-        # "cosmos": "exports/cosmos_export.json",
-        # "juno": "exports/juno_export.json",
+        "akash": "exports/akash_export.json",
+        "cosmos": "exports/cosmos_export.json",
+        "juno": "exports/juno_export.json",
     }
     # otherChains = {"huahua": "exports/huahua_export.json"} 
 
@@ -74,7 +77,7 @@ def main():
     print(f"{TOTAL_SUPPLY=}")
     # / End of total supply logic. Could be moved to another class
 
-    # Save stated data in format: 
+    # Save staked data in format: 
     # chainAddr validatorAddr bonusMulitplier amountOfUTokenDelegated
     # This makes it easier for us to iterate & see + smaller than the full export
     # & save total staked for the network
@@ -82,6 +85,7 @@ def main():
         with open("final/staking_tokens.json", 'r') as f:
             TOTAL_STAKED_TOKENS = json.load(f)
             print("Loaded staked tokens from cache " + str(TOTAL_STAKED_TOKENS))
+            # If you do not want cache, rm -r output/ final/
     else:
         for chain in files.keys():        
             # Should we save as json?
