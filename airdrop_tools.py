@@ -108,7 +108,14 @@ def main():
             ignoreNonNativeIBCDenoms=True, 
             ignoreEmptyAccounts=True
         )            
-        group2_fairdrop_for_osmosis_pools(osmosisBalances) # group 2
+
+        for acc in osmosisBalances:
+            balances = osmosisBalances[acc]
+            for b in balances:
+                if b in ['gamm/pool/2']:
+                    print(acc, b, balances[b])
+
+        # group2_fairdrop_for_osmosis_pools(osmosisBalances, TOTAL_SUPPLY) # group 2
         # group5_ION_holders_and_LPers()
     # group3_atom_relayers()
 
@@ -254,16 +261,15 @@ def reset_craft_airdrop_temp_dict():
     craft_airdrop_amounts = {}
 
 # TODO: Merge group 5 ION LPs in here too? If so osmosis_get_all_LP_providers needs to add their pools as well
-def group2_fairdrop_for_osmosis_pools(osmosisBalances: dict):
+def group2_fairdrop_for_osmosis_pools(osmosisBalances: dict, TOTAL_SUPPLY: dict):
     '''Group #2 - LPs for pool #1 and #561 (luna/osmo)'''
 
-    filePath = "output/osmosis_balances.json" 
-
+    # filePath = "output/osmosis_balances.json" 
     # FORMAT: poolHolder in file: {"osmoaddress": {"gamm/pool/1": 0, "gamm/pool/561": 0}, {...}}
     # FORMAT: totalSupply in file: {"gamm/pool/1": 0, "gamm/pool/561": 0}
-    totalSupply, poolHolders = osmosis_get_all_LP_providers(filePath)    
-    if totalSupply == {}: # filePath doesn't exist yet
-        return
+    # totalSupply, poolHolders = osmosis_get_all_LP_providers(filePath)    
+    # if totalSupply == {}: # filePath doesn't exist yet
+    #     return
 
     CRAFT_SUPPLY_FOR_POOLS = { 
         # TODO: change this with bean based on which rates we give each. move into airdrop_data file.
@@ -275,26 +281,35 @@ def group2_fairdrop_for_osmosis_pools(osmosisBalances: dict):
     # DEBUGGING - just to check that this is close to CRAFT_SUPPLY_FOR_POOLS total
     totalCraftGivenActual = { "gamm/pool/1": 0, "gamm/pool/561": 0}
 
-    for address in poolHolders.keys():
-        # usersPoolPercent = {"gamm/pool/1": 0, "gamm/pool/561": 0}
+    for address in osmosisBalances.keys():
+        coins = osmosisBalances[address]
+        # print(coins)
 
-        for token in ["gamm/pool/1", "gamm/pool/561"]:
-            # A users LP Token Share
-            tokenAmount = int(poolHolders[address][token])
-            if tokenAmount == 0:
-                continue
+        for coin in coins.keys():
+            if coin in ["gamm/pool/1", "gamm/pool/561"]:
+                balance = float(coins[coin])
+                print(f"{address} has {balance} {coin}")
 
-            # decimal percent -> ex 0.00002
-            theirPercentOwnership = (tokenAmount / int(totalSupply[token])) 
+        # for coin in ["gamm/pool/1", "gamm/pool/561"]:            
+        #     if coin not in coins.keys():
+        #         continue 
 
-            # (totalSupplyForGivenPool*0.00002) = theirAllotmentOfCraft
-            theirCraftAllotment = CRAFT_SUPPLY_FOR_POOLS[token] * theirPercentOwnership 
+        #     # A users LP Token Share
+        #     tokenAmount = int(coins[coin])
+        #     if tokenAmount == 0:
+        #         continue
 
-            # DEBUG to ensure we are close to giving out ALL of the amount of CRAFT for each pool here
-            totalCraftGivenActual[token] += theirCraftAllotment
+        #     # decimal percent -> ex 0.00002
+        #     theirPercentOwnership = (tokenAmount / int(TOTAL_SUPPLY[coin])) 
 
-            # Saved as ucraft
-            add_airdrop_to_craft_account(address, theirCraftAllotment * 1_000_000)
+        #     # (totalSupplyForGivenPool*0.00002) = theirAllotmentOfCraft
+        #     theirCraftAllotment = CRAFT_SUPPLY_FOR_POOLS[coin] * theirPercentOwnership 
+
+        #     # DEBUG to ensure we are close to giving out ALL of the amount of CRAFT for each pool here
+        #     totalCraftGivenActual[coin] += theirCraftAllotment
+
+        #     # Saved as ucraft
+        #     add_airdrop_to_craft_account(address, theirCraftAllotment * 1_000_000)
 
             # if token == "gamm/pool/561": # DEBUG
             #     print(f"{address}'s {token} -> {theirCRAFTForThisGroup}craft")
@@ -307,8 +322,8 @@ def group2_fairdrop_for_osmosis_pools(osmosisBalances: dict):
     
     reset_craft_airdrop_temp_dict()
 
-    print(f":::LPs:::\nNumber of unique wallets providing liquidity to #1 & #561: {len(poolHolders)}")
-    print(f"Total supply: {totalSupply}")
+    print(f":::LPs:::\nNumber of unique wallets providing liquidity to #1 & #561: {len(osmosisBalances)}")
+    # print(f"Total supply: {totalSupply}")
     print(f"Total craft given: {totalCraftGivenActual=} out of {CRAFT_SUPPLY_FOR_POOLS=}")
 
 # used in above function. 

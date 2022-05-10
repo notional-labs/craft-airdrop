@@ -192,9 +192,15 @@ def yield_staked_values(input_file):
             yield delegator, valaddr, bonus, ustake # ensure this matches up with save_staked_amounts() func
 
 
-def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uosmo", "uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "640"], ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True) -> dict:
+# getTotalSuppliesOf=["uosmo", "uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "gamm/pool/151"]
+def save_osmosis_balances(input_file, output_file, ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True) -> dict:
     print(f"Saving balances to {output_file}. {ignoreNonNativeIBCDenoms=} {ignoreEmptyAccounts=}")
-    print(f"Will return a dict of the following total supplies: {getTotalSuppliesOf}")
+    # print(f"Will return a dict of the following total supplies: {getTotalSuppliesOf}")
+
+    if os.path.isfile(output_file):
+        with open(output_file, 'r') as f:
+            print("Loaded osmosis balances from cache")
+            return json.load(f)
 
     # totalSupply = {str(denom).lower(): 0 for denom in getTotalSuppliesOf}
     accounts = {}
@@ -211,8 +217,8 @@ def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uosmo", 
             if ignoreNonNativeIBCDenoms and str(denom).startswith('ibc/'):
                 continue # ignore any non native ibc tokens held by the account
 
-            if denom not in getTotalSuppliesOf:
-                continue # skip balances we dont care about
+            # if denom not in getTotalSuppliesOf:
+            #     continue # skip balances we dont care about
 
             outputCoins[denom] = amount # {'uion': 1000000, 'uosmo': 1000000}
 
@@ -226,9 +232,6 @@ def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uosmo", 
         
     print(f"{idx} accounts processed from {input_file}")
     with open(output_file, 'w') as o:
-        o.write(json.dumps(accounts))
-
-    with open("output/OSMOSIS_TOTAL_BALANCES.json", 'w') as o:
         o.write(json.dumps(accounts))
     
     return accounts
