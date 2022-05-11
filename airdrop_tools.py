@@ -73,23 +73,32 @@ def main():
         # print(f"[!] Downloading {file}")
         utils.downloadAndDecompressXZFileFromServer(fileName=file)
 
-    # Gets the total supply of ALL chains including LPs if in denomsWeWant=[] list
-    # Or uses a cached version if that is avaliable.
-    if os.path.isfile("final/total_supply.json"):
-        with open("final/total_supply.json", 'r') as f:
-            TOTAL_SUPPLY = json.load(f)
-            print("Loaded TOTAL_SUPPLY from cached file")
-    else:
+
+    '''
+    Gets the total supply of ALL chains we want including LPs if it is in denomsWeWant
+    If it is, it will just return that list
+
+    ex: denomsWeWant = ["uosmo", "uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "gamm/pool/640"]
+
+    Could be moved to utils?
+    '''
+    fileName = "supply/total_supply.json"
+    if not os.path.isfile(fileName):
         for chain in files.keys():
             print("Getting total supply for chain: ", chain)
             for idx, supply in utils.stream_section(files[chain], "total_supply"):
                 denom = supply['denom']
                 if denom in denomsWeWant:
                     TOTAL_SUPPLY[denom] = supply['amount']    
-        with open("final/total_supply.json", 'w') as o:
+        with open(fileName, 'w') as o:
             o.write(json.dumps(TOTAL_SUPPLY))
+            
+    with open(fileName, 'r') as f:
+        TOTAL_SUPPLY = json.load(f)
     print(f"{TOTAL_SUPPLY=}")
     # / End of total supply logic. Could be moved to another class
+
+
 
 
 
