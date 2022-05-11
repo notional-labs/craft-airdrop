@@ -7,7 +7,11 @@ import ijson
 
 from tqdm import tqdm
 
-requiredDirs = ["output", "exports", "final", "supply", "balances", "staked"] # auto created
+requiredDirs = {  # auto created
+    "output": ["supply", "balances","staked"], 
+    "exports": [], 
+    "final": [],    
+}
 
 sections = { 
     # locations within the genesis file
@@ -46,9 +50,19 @@ def convert_address_to_craft(address, non118coins=["0x", "gravity"]) -> str:
 
 
 def createDefaultPathsIfNotExisting():
-    for dir in requiredDirs:
-        if not os.path.exists(dir):
-            os.mkdir(dir)
+    for dir in requiredDirs.keys():
+        # if dir is a list
+        if isinstance(requiredDirs[dir], list) and len(requiredDirs[dir]) > 0:
+            # create parrent dir if not there
+            if not os.path.exists(f"{dir}"):
+                os.mkdir(f"{dir}")     
+            # create subdir if it doesn't exist           
+            for subdir in requiredDirs[dir]:                
+                if not os.path.exists(f"{dir}/{subdir}"):
+                    os.mkdir(f"{dir}/{subdir}")
+        else:
+            if not os.path.exists(f"{dir}"):
+                os.mkdir(f"{dir}")
 
 
 def getExportsOnWebsiteIndex(link="https://reece.sh/exports/index.html", extensions="(.*xz)", chainsRequested=[]) -> list:
@@ -83,6 +97,7 @@ def downloadAndDecompressXZFileFromServer(baseLink="https://reece.sh/exports", f
     os.chdir("exports")
     print(f"\n [!] Downloading {fileName}...")
     download(baseLink + "/" + fileName, fileName)
+    print(f"Downloaded. Now Decompressing... via `xz -d` command")
 
     # decompress the xz file
     os.system(f"xz -d {fileName}")
@@ -114,7 +129,7 @@ from src.airdrop_data import ATOM_RELAYERS, BLACKLISTED_CENTRAL_EXCHANGES, GENES
 import json
 
 
-def yield_staked_values_from_file(stakedUsersInputFile="staked/chain.json"):
+def yield_staked_values_from_file(stakedUsersInputFile="output/staked/chain.json"):
     # with open(stakedUsersInputFile, 'r') as f:
     #     for line in f:
     #         line = line.strip()
@@ -128,10 +143,10 @@ def yield_staked_values_from_file(stakedUsersInputFile="staked/chain.json"):
         delegators = data[validator]["delegators"]
         for delegate in delegators.keys():
             amount = float(delegators[delegate]["amount"])
-            bonus = float(delegators[delegate]["bonus"])
-            yield {"delegator": delegate, "validator": validator, "ustake": amount, "bonusMultiplier": bonus}
+            bonus = float(delegators[delegate]["bonusMultiplier"])
+            yield {"delegator": delegate, "validator": validator, "amount": amount, "bonusMultiplier": bonus}
 
-def yield_balances_from_file(balanceUsersInputFile="balances/chain.json"):
+def yield_balances_from_file(balanceUsersInputFile="output/balances/chain.json"):
     with open(balanceUsersInputFile, 'r') as f:
         accounts = json.load(f)
 
@@ -162,9 +177,28 @@ def save_staked_users(input_file="exports/chain.json", output_file="staked/chain
     Returns a dict of information
     '''
 
+    if os.path.isfile(output_file):
+        with open(output_file, 'r') as f:
+            print(f"Using cached file {output_file} for staked values")
+            validators = json.load(f)
+        
+        _totalStaked = 0
+        # _numOfUniqueDelegators = set()
+        for validator in validators.keys():
+            _totalStaked += float(validators[validator]["stats"]["total_stake"])
+
+        return {
+            "total_staked": _totalStaked, 
+            "number_of_validators": len(validators.keys()),
+            # "number_of_unique_delegators": len(numberOfUniqueDelegators) # not implimented
+        }
+    
+
     print(f"Saving staked amounts to {output_file}. {excludeCentralExchanges=}")
 
-    # delegatorsWithBonuses = 0 # just for stats
+    # statistics
+    delegatorsWithBonuses = 0
+    # Important
     totalStakedOnChain = 0
     totalBonusAmount = 0
     STAKED_VALUES = {}
@@ -189,7 +223,7 @@ def save_staked_users(input_file="exports/chain.json", output_file="staked/chain
             STAKED_VALUES[valaddr] = {"stats": {"total_stake": 0}, "delegators": {}}
 
         STAKED_VALUES[valaddr]["stats"]["total_stake"] += stake
-        STAKED_VALUES[valaddr]["delegators"][delegator] = {"ustake": stake, "bonusMultiplier": bonus}
+        STAKED_VALUES[valaddr]["delegators"][delegator] = {"amount": stake, "bonusMultiplier": bonus}
         numberOfUniqueDelegators.add(delegator) # only adds unique user addresses to set
 
         totalStakedOnChain += stake
@@ -198,17 +232,17 @@ def save_staked_users(input_file="exports/chain.json", output_file="staked/chain
 
     print(f"{delegatorsWithBonuses=}\n")
     with open(output_file, 'w') as o:
-        o.write(json.dump(STAKED_VALUES))
+        o.write(json.dumps(STAKED_VALUES))
     
     print(f"Saved {len(STAKED_VALUES)} validators and {len(numberOfUniqueDelegators)} delegators to {output_file}")
     return {
         "total_staked": totalStakedOnChain, 
         "number_of_validators": len(STAKED_VALUES.keys()),
-        "number_of_unique_delegators": len(numberOfUniqueDelegators)
+        # "number_of_unique_delegators": len(numberOfUniqueDelegators)
     }
 
 
-def save_balances_to_file(input_file="exports/chain.json", output_file="balances/chain.json", 
+def save_balances_to_file(input_file="output/exports/chain.json", output_file="output/balances/chain.json", 
     getTotalSuppliesOf=["uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "gamm/pool/640"], 
     ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True) -> dict:
     '''
@@ -223,6 +257,12 @@ def save_balances_to_file(input_file="exports/chain.json", output_file="balances
         "address2": {...}
     }
     '''
+
+    if os.path.isfile(output_file):
+        with open(output_file, 'r') as f:
+            accounts = json.load(f)
+        print(f"Using cached balances from {output_file}")
+        return accounts
 
     print(f"Saving balances to {output_file}. {ignoreNonNativeIBCDenoms=} {ignoreEmptyAccounts=}")
 

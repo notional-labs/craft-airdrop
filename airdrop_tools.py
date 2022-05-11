@@ -6,8 +6,7 @@ import os
 
 import src.utils as utils
 
-from src.airdrop_data import AIRDROP_DISTRIBUTIONS, AIRDROP_RATES, \
-    BLACKLISTED_CENTRAL_EXCHANGES, GENESIS_VALIDATORS, ATOM_RELAYERS
+from src.airdrop_data import BLACKLISTED_CENTRAL_EXCHANGES, GENESIS_VALIDATORS, ATOM_RELAYERS
 
 '''
 Snapshot tooling to stream an export to a file for easier handling in easy formats
@@ -51,21 +50,21 @@ def main():
 
     # Maybe put all chains here in format:
     CHAINS = {
-        "cosmos": {
-            "export": "exports/cosmos_export.json",
-            "bonding_token": "uatom", 
-            "denoms": [] # other denoms we want to track the total supply of
-        },
-        "akash": {
-            "export": "exports/akash_export.json",
-            "bonding_token": "uakt",
-            "denoms": []
-        },
-        "juno": {
-            "export": "exports/juno_export.json",
-            "bonding_token": "ujuno",
-            "denoms": []
-        },
+        # "cosmos": {
+        #     "export": "exports/cosmos_export.json",
+        #     "bonding_token": "uatom", 
+        #     "denoms": [] # other denoms we want to track the total supply of
+        # },
+        # "akash": {
+        #     "export": "exports/akash_export.json",
+        #     "bonding_token": "uakt",
+        #     "denoms": []
+        # },
+        # "juno": {
+        #     "export": "exports/juno_export.json",
+        #     "bonding_token": "ujuno",
+        #     "denoms": []
+        # },
         "osmosis": {
             "export": "exports/osmosis_export.json",
             "bonding_token": "uosmo",
@@ -87,7 +86,7 @@ def main():
 
     Could be moved to utils?
     '''
-    fileName = "supply/total_supply.json"
+    fileName = "output/supply/total_supply.json"
     if not os.path.isfile(fileName):
         for chain in CHAINS.keys():
             print("Getting total supply for chain: ", chain)
@@ -111,16 +110,18 @@ def main():
     # This makes it easier for us to iterate & see + smaller than the full export
     for chain in CHAINS.keys():
         exportFile = CHAINS[chain]["export"]
-        stakedObject = utils.save_staked_users(input_file=exportFile, output_file=f"staked/{chain}.json")
+        stakedObject = utils.save_staked_users(input_file=exportFile, output_file=f"output/staked/{chain}.json")
         
         denom = CHAINS[chain]['bonding_token'] # chain osmosis -> uosmo
-        TOTAL_STAKED_TOKENS[denom] = stakedObject["total_staked"]
+        totalStakeduDenom = stakedObject["total_staked"]
+        print(f"Total Staked: {totalStakeduDenom} {denom} for chain: {chain}")
+        TOTAL_STAKED_TOKENS[denom] = totalStakeduDenom
 
 
     # Runs: Group 1 Airdrop. Use this list since all chains are in CHAINS
     # for chain in ["akash", "cosmos", "juno", "osmosis"]:
-    for chain in ["osmosis"]:
-        group1_stakers_with_genesis_bonus(chain, TOTAL_STAKED_TOKENS)        
+    # for chain in ["osmosis"]:
+    #     group1_stakers_with_genesis_bonus(chain, TOTAL_STAKED_TOKENS)        
     
 
     # Group 2
@@ -128,12 +129,12 @@ def main():
         # saves osmosis balances & does the pool airdrop calculation
         osmosisBalances = utils.save_balances_to_file(
             CHAINS['osmosis']['export'], 
-            'balances/osmosis.json', 
+            'output/balances/osmosis.json', 
             getTotalSuppliesOf=["uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "gamm/pool/640"],
             ignoreNonNativeIBCDenoms=True, 
             ignoreEmptyAccounts=True
         )       
-        # print(len(osmosisBalances))     
+        # print(len(osmosisBalances)) 
         group2_fairdrop_for_osmosis_pools(osmosisBalances, TOTAL_SUPPLY) # group 2
         # group5_ION_holders_and_LPers()
     # group3_atom_relayers()
@@ -164,7 +165,7 @@ def group1_stakers_with_genesis_bonus(chainName, TOTAL_STAKED: dict):
     ACTUAL_ALLOTMENT_GIVEN = 0 # This should be higher since bonuses
     ACTUAL_BONUS_GIVEN = 0
 
-    stake_balance_filename = utils.getOutputFileName(chainName, extension=".txt")
+    stake_balance_filename = f"staked/{chainName}.json"
 
     # check if stake_balance_filename exists
     if not os.path.isfile(stake_balance_filename):
@@ -185,10 +186,14 @@ def group1_stakers_with_genesis_bonus(chainName, TOTAL_STAKED: dict):
         exit(1)
     # / End of getting token supply
 
-    for delegator, valaddr, bonus, ustake in utils.yield_staked_values(stake_balance_filename):
-        # print(f"{delegator} {valaddr} {bonus} {ustake}")
+    for delegateObject in utils.yield_staked_values_from_file(stake_balance_filename):        
 
-        theirPercentOfAllStaked = float(ustake) / totalTokensStakedForChain
+        delegator = delegateObject["delegator"]
+        # valaddr = delegateObject["validator"]
+        bonus = delegateObject["bonusMultiplier"]
+        amount = delegateObject["amount"]
+
+        theirPercentOfAllStaked = float(amount) / totalTokensStakedForChain
         theirAllotment = theirPercentOfAllStaked * CRAFT_ALLOTMENTS[chainName] # how much craft THEY get before bonus
 
         ACTUAL_ALLOTMENT_GIVEN += theirAllotment # debug actual craft being given
@@ -224,8 +229,7 @@ def group2_fairdrop_for_osmosis_pools(osmosisBalances: dict, TOTAL_SUPPLY: dict)
     #     return
 
     CRAFT_SUPPLY_FOR_POOLS = { 
-        # TODO: change this with bean based on which rates we give each. move into airdrop_data file.
-        "gamm/pool/1": 1_000_000, # Move these into airdrop data
+        "gamm/pool/1": 1_000_000,
         "gamm/pool/561": 1_500_000
     }
 
@@ -234,7 +238,7 @@ def group2_fairdrop_for_osmosis_pools(osmosisBalances: dict, TOTAL_SUPPLY: dict)
     # DEBUGGING - just to check that this is close to CRAFT_SUPPLY_FOR_POOLS total
     totalCraftGivenActual = { "gamm/pool/1": 0, "gamm/pool/561": 0}
 
-    accounts = {}
+    # accounts = {}
 
     for address in osmosisBalances.keys():
         coins = osmosisBalances[address]
@@ -272,9 +276,10 @@ def group2_fairdrop_for_osmosis_pools(osmosisBalances: dict, TOTAL_SUPPLY: dict)
         o.write(json.dumps(craft_airdrop_amounts))
 
     print(f":::LPs:::\nNumber of unique wallets providing liquidity to #1 & #561: {len(craft_airdrop_amounts)}")
-    # print(f"Total supply: {totalSupply}")
-    print(f"Total craft given: {totalCraftGivenActual=} out of {CRAFT_SUPPLY_FOR_POOLS=}")
 
+    # print(f"Total craft given: {totalCraftGivenActual=} out of {CRAFT_SUPPLY_FOR_POOLS=}")
+    for poolID in CRAFT_SUPPLY_FOR_POOLS.keys():
+        print(f"{poolID} Given minus intended: {totalCraftGivenActual[poolID] - CRAFT_SUPPLY_FOR_POOLS[poolID]}")
 
 
 def group3_atom_relayers(): # cosmos
@@ -288,6 +293,7 @@ def group3_atom_relayers(): # cosmos
     allCosmosStakers = utils.getOutputFileName("cosmos")
 
     reset_craft_airdrop_temp_dict()
+    # TODO: Redo this section for new values
     for delegator, valaddr, bonus, ustake in utils.yield_staked_values(allCosmosStakers):
         
         if valaddr not in ATOM_RELAYERS.keys():
