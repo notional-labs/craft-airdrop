@@ -36,9 +36,11 @@ def stream_section(fileName, key, debug=False):
             yield idx, obj
 
 
-def convert_address_to_craft(address) -> str:
-    if address.startswith('0x') or address.startswith('gravity'):
-        return address # Can't convert non 118 cointype
+def convert_address_to_craft(address, non118coins=["0x", "gravity"]) -> str:
+    for bad in non118coins:
+        if address.startswith(bad):
+            return address # return normal address if not 118 coins
+
     _, data = bech32.bech32_decode(address)
     return bech32.bech32_encode('craft', data)
 
@@ -128,6 +130,14 @@ def yield_staked_values_from_file(stakedUsersInputFile="staked/chain.json"):
             amount = float(delegators[delegate]["amount"])
             bonus = float(delegators[delegate]["bonus"])
             yield {"delegator": delegate, "validator": validator, "ustake": amount, "bonusMultiplier": bonus}
+
+def yield_balances_from_file(balanceUsersInputFile="balances/chain.json"):
+    with open(balanceUsersInputFile, 'r') as f:
+        accounts = json.load(f)
+
+    for account in accounts.keys():
+        yield {"address": account, "balances": accounts[account]}
+
 
 # Required for every chain we use
 def save_staked_users(
