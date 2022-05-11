@@ -48,28 +48,33 @@ def main():
     utils.createDefaultPathsIfNotExisting()
 
     # list of denoms we want to track the total supply of for all the chainsd
-    denomsWeWant = [
-        'uakt', 'ujuno', 'uatom', 'uosmo',  # core chains
-        'uion', 'gamm/pool/1', 'gamm/pool/2', 'gamm/pool/151', 'gamm/pool/630', 'gamm/pool/640', 'gamm/pool/561', # osmosis LP and ION holder / LP groups
-    ]
 
-    DENOMS = {
-        "osmosis": "uosmo",
-        "akash": "uakt",
-        "cosmos": "uatom",
-        "juno": "ujuno",
+    # Maybe put all chains here in format:
+    CHAINS = {
+        "cosmos": {
+            "export": "exports/cosmos_export.json",
+            "bonding_token": "uatom", 
+            "denoms": [] # other denoms we want to track the total supply of
+        },
+        "akash": {
+            "export": "exports/akash_export.json",
+            "bonding_token": "uakt",
+            "denoms": []
+        },
+        "juno": {
+            "export": "exports/juno_export.json",
+            "bonding_token": "ujuno",
+            "denoms": []
+        },
+        "osmosis": {
+            "export": "exports/osmosis_export.json",
+            "bonding_token": "uosmo",
+            "denoms": ['uion', 'gamm/pool/1', 'gamm/pool/2', 'gamm/pool/151', 'gamm/pool/630', 'gamm/pool/640', 'gamm/pool/561']
+        }
     }
-
-    files = {
-        "osmosis": "exports/osmosis_export.json",
-        # "akash": "exports/akash_export.json",
-        # "cosmos": "exports/cosmos_export.json",
-        # "juno": "exports/juno_export.json",
-    }
-    # otherChains = {"huahua": "exports/huahua_export.json"} 
     
     ## Downloads files to exports dir if not already downloaded AND is in files
-    for file in utils.getExportsOnWebsiteIndex(chainsRequested=list(files.keys())):
+    for file in utils.getExportsOnWebsiteIndex(chainsRequested=list(CHAINS.keys())):
         # print(f"[!] Downloading {file}")
         utils.downloadAndDecompressXZFileFromServer(fileName=file)
 
@@ -84,9 +89,11 @@ def main():
     '''
     fileName = "supply/total_supply.json"
     if not os.path.isfile(fileName):
-        for chain in files.keys():
+        for chain in CHAINS.keys():
             print("Getting total supply for chain: ", chain)
-            for idx, supply in utils.stream_section(files[chain], "total_supply"):
+            exportFile = CHAINS[chain]["export"]
+            denomsWeWant = CHAINS[chain]["denoms"]
+            for idx, supply in utils.stream_section(exportFile, "total_supply"):
                 denom = supply['denom']
                 if denom in denomsWeWant:
                     TOTAL_SUPPLY[denom] = supply['amount']    
@@ -99,29 +106,30 @@ def main():
     # / End of total supply logic. Could be moved to another class
 
 
-
-
-
     # Save stated data in format: 
-    # chainAddr validatorAddr bonusMulitplier amountOfUTokenDelegated
+    # chainAddr validatorAddr bonusMultiplier amountOfUTokenDelegated
     # This makes it easier for us to iterate & see + smaller than the full export
-    for chain in files.keys():        
-        chainStakedTokens = utils.save_staked_amounts(files[chain], utils.getOutputFileName(chain, extension=".txt")) # Should we save as json?
-        denom = DENOMS[chain] # osmosis -> uosmo
-        TOTAL_STAKED_TOKENS[denom] = chainStakedTokens
+    for chain in CHAINS.keys():
+        exportFile = CHAINS[chain]["export"]
+        stakedObject = utils.save_staked_users(input_file=exportFile, output_file=f"staked/{chain}.json")
+        
+        denom = CHAINS[chain]['bonding_token'] # chain osmosis -> uosmo
+        TOTAL_STAKED_TOKENS[denom] = stakedObject["total_staked"]
 
-    # Runs: Group 1 Airdrop
+
+    # Runs: Group 1 Airdrop. Use this list since all chains are in CHAINS
     # for chain in ["akash", "cosmos", "juno", "osmosis"]:
     for chain in ["osmosis"]:
         group1_stakers_with_genesis_bonus(chain, TOTAL_STAKED_TOKENS)        
     
 
     # Group 2
-    if False: # Change to True to run osmosis logic
+    if True: # Change to True to run osmosis logic
         # saves osmosis balances & does the pool airdrop calculation
-        osmosisBalances = utils.save_osmosis_balances(
-            files['osmosis'], 
-            'output/osmosis_balances.json', 
+        osmosisBalances = utils.save_balances_to_file(
+            CHAINS['osmosis']['export'], 
+            'balances/osmosis.json', 
+            getTotalSuppliesOf=["uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "gamm/pool/640"],
             ignoreNonNativeIBCDenoms=True, 
             ignoreEmptyAccounts=True
         )       
