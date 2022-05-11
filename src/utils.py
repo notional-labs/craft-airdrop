@@ -140,8 +140,7 @@ def yield_balances_from_file(balanceUsersInputFile="balances/chain.json"):
 
 
 # Required for every chain we use
-def save_staked_users(
-    input_file="exports/chain.json", output_file="staked/chain.json", 
+def save_staked_users(input_file="exports/chain.json", output_file="staked/chain.json", 
     excludeCentralExchanges=True, doBonusesForGenesisValidators=True) -> dict:
     '''
     Saves all Validators, some stats, and their delegators:
