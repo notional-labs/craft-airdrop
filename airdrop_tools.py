@@ -43,21 +43,21 @@ TOTAL_SUPPLY = {}
 TOTAL_STAKED_TOKENS = {}
 
 CHAINS = {
-    # "cosmos": {
-    #     "export": "exports/cosmos_export.json",
-    #     "bonding_token": "uatom", 
-    #     "denoms": [] # other denoms we want to track the total supply of
-    # },
-    # "akash": {
-    #     "export": "exports/akash_export.json",
-    #     "bonding_token": "uakt",
-    #     "denoms": []
-    # },
-    # "juno": {
-    #     "export": "exports/juno_export.json",
-    #     "bonding_token": "ujuno",
-    #     "denoms": []
-    # },
+    "cosmos": {
+        "export": "exports/cosmos_export.json",
+        "bonding_token": "uatom", 
+        "denoms": [] # other denoms we want to track the total supply of
+    },
+    "akash": {
+        "export": "exports/akash_export.json",
+        "bonding_token": "uakt",
+        "denoms": []
+    },
+    "juno": {
+        "export": "exports/juno_export.json",
+        "bonding_token": "ujuno",
+        "denoms": []
+    },
     "osmosis": {
         "export": "exports/osmosis_export.json",
         "bonding_token": "uosmo",
@@ -102,7 +102,6 @@ def main():
     # Save stated data in format: 
     # chainAddr validatorAddr bonusMultiplier amountOfUTokenDelegated
     # This makes it easier for us to iterate & see + smaller than the full export
-    '''
     for chain in CHAINS.keys():
         exportFile = CHAINS[chain]["export"]
         stakedObject = utils.save_staked_users(input_file=exportFile, output_file=f"output/staked/{chain}.json")
@@ -111,13 +110,12 @@ def main():
         totalStakeduDenom = stakedObject["total_staked"]
         print(f"Total Staked: {totalStakeduDenom} {denom} for chain: {chain}")
         TOTAL_STAKED_TOKENS[denom] = totalStakeduDenom
-    '''
 
     # Runs: Group 1 Airdrop. Use this list since all chains are in CHAINS
-    # for chain in ["akash", "cosmos", "juno", "osmosis"]:
-    # # for chain in ["cosmos"]:
-    #     if chain not in CHAINS.keys(): print(f"\n\n[!]Did you remeber to uncomment/add {chain} to the CHAINS dict in main? exiting...\n\n"); exit(1)
-    #     group1_stakers_with_genesis_bonus(chain, TOTAL_STAKED_TOKENS, onlyToBondedValidators=True)
+    for chain in ["akash", "cosmos", "juno", "osmosis"]:
+    # for chain in ["cosmos"]:
+        if chain not in CHAINS.keys(): print(f"\n\n[!]Did you remeber to uncomment/add {chain} to the CHAINS dict in main? exiting...\n\n"); exit(1)
+        group1_stakers_with_genesis_bonus(chain, TOTAL_STAKED_TOKENS, onlyToBondedValidators=True)
     
 
     # Group 2
