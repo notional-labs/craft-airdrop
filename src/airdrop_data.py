@@ -1,22 +1,3 @@
-
-
-AIRDROP_DISTRIBUTIONS = { 
-    # TODO: NOT REAL VALUES, FOR TESTING ONLY
-    # https://github.com/notional-labs/craft/issues/17
-    1: 0, # stakers of [akash, osmo, atom, and juno]
-    2: 0, # LP's of Pool 1 & 561
-    3: 0, # Delegators to Atom relayers
-    4: 0, # ChandraStation Deleagators
-    5: 0, # ION Holders & LP's
-    6: 37_500_000, # Genesis Validators
-    7: 0, # Beta Players
-}
-
-AIRDROP_RATES = { # TODO: NOT REAL VALUES, FOR TESTING ONLY
-    "dig": 10_000_000,   # 10dig = 1 craft
-    "osmo": 100_000      # 0.1 osmo = 1 craft
-}
-
 ATOM_RELAYERS = {
     # https://twitter.com/SignalSGNL/status/1521384507844091910?s=20&t=7Krj2BWrg5a3N8dHxmTEKA
     "cosmosvaloper130mdu9a0etmeuw52qfxk73pn0ga6gawkxsrlwf": "strangelove-ventures",
