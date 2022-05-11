@@ -43,21 +43,21 @@ TOTAL_SUPPLY = {}
 TOTAL_STAKED_TOKENS = {}
 
 CHAINS = {
-    "cosmos": {
-        "export": "exports/cosmos_export.json",
-        "bonding_token": "uatom", 
-        "denoms": [] # other denoms we want to track the total supply of
-    },
-    "akash": {
-        "export": "exports/akash_export.json",
-        "bonding_token": "uakt",
-        "denoms": []
-    },
-    "juno": {
-        "export": "exports/juno_export.json",
-        "bonding_token": "ujuno",
-        "denoms": []
-    },
+    # "cosmos": {
+    #     "export": "exports/cosmos_export.json",
+    #     "bonding_token": "uatom", 
+    #     "denoms": [] # other denoms we want to track the total supply of
+    # },
+    # "akash": {
+    #     "export": "exports/akash_export.json",
+    #     "bonding_token": "uakt",
+    #     "denoms": []
+    # },
+    # "juno": {
+    #     "export": "exports/juno_export.json",
+    #     "bonding_token": "ujuno",
+    #     "denoms": []
+    # },
     "osmosis": {
         "export": "exports/osmosis_export.json",
         "bonding_token": "uosmo",
@@ -102,6 +102,7 @@ def main():
     # Save stated data in format: 
     # chainAddr validatorAddr bonusMultiplier amountOfUTokenDelegated
     # This makes it easier for us to iterate & see + smaller than the full export
+    '''
     for chain in CHAINS.keys():
         exportFile = CHAINS[chain]["export"]
         stakedObject = utils.save_staked_users(input_file=exportFile, output_file=f"output/staked/{chain}.json")
@@ -110,16 +111,17 @@ def main():
         totalStakeduDenom = stakedObject["total_staked"]
         print(f"Total Staked: {totalStakeduDenom} {denom} for chain: {chain}")
         TOTAL_STAKED_TOKENS[denom] = totalStakeduDenom
+    '''
 
     # Runs: Group 1 Airdrop. Use this list since all chains are in CHAINS
-    for chain in ["akash", "cosmos", "juno", "osmosis"]:
-    # for chain in ["cosmos"]:
-        if chain not in CHAINS.keys(): print(f"\n\n[!]Did you remeber to uncomment/add {chain} to the CHAINS dict in main? exiting...\n\n"); exit(1)
-        group1_stakers_with_genesis_bonus(chain, TOTAL_STAKED_TOKENS, onlyToBondedValidators=True)
+    # for chain in ["akash", "cosmos", "juno", "osmosis"]:
+    # # for chain in ["cosmos"]:
+    #     if chain not in CHAINS.keys(): print(f"\n\n[!]Did you remeber to uncomment/add {chain} to the CHAINS dict in main? exiting...\n\n"); exit(1)
+    #     group1_stakers_with_genesis_bonus(chain, TOTAL_STAKED_TOKENS, onlyToBondedValidators=True)
     
 
     # Group 2
-    if False: # Change to True to run osmosis logic
+    if True: # Change to True to run osmosis logic
         # saves osmosis balances & does the pool airdrop calculation
         osmosisBalances = utils.save_balances_to_file(
             CHAINS['osmosis']['export'], 
@@ -129,8 +131,8 @@ def main():
             ignoreEmptyAccounts=True
         )       
         # print(len(osmosisBalances)) 
-        group2_fairdrop_for_osmosis_pools(osmosisBalances, TOTAL_SUPPLY) # group 2
-        # group5_ION_holders_and_LPers()
+        # group2_fairdrop_for_osmosis_pools(osmosisBalances, TOTAL_SUPPLY) # group 2
+        group5_ION_holders_and_LPers()
     # group3_atom_relayers()
 
 
@@ -359,7 +361,7 @@ def group5_ION_holders_and_LPers():
     ACTUAL_ION_ALLOTMENT = 0
     # ensure you have already save_balances() up in main before this section
 
-    with open("output/osmosis_balances.json", 'r') as f:
+    with open("output/balances/osmosis.json", 'r') as f:
         osmosis_balances = json.loads(f.read())
 
     reset_craft_airdrop_temp_dict()
