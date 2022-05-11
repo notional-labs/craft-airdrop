@@ -111,8 +111,26 @@ def download(url, fname):
 from src.airdrop_data import ATOM_RELAYERS, BLACKLISTED_CENTRAL_EXCHANGES, GENESIS_VALIDATORS
 import json
 
+
+def yield_staked_values_from_file(stakedUsersInputFile="staked/chain.json"):
+    # with open(stakedUsersInputFile, 'r') as f:
+    #     for line in f:
+    #         line = line.strip()
+    #         delegator, valaddr, bonus, ustake = line.split(' ')
+    #         yield delegator, valaddr, bonus, ustake # ensure this matches up with save_staked_amounts() func
+
+    with open(stakedUsersInputFile, 'r') as f:
+        data = json.load(f) # Do we need to stream it?
+
+    for validator in data.keys():
+        delegators = data[validator]["delegators"]
+        for delegate in delegators.keys():
+            amount = float(delegators[delegate]["amount"])
+            bonus = float(delegators[delegate]["bonus"])
+            yield {"delegator": delegate, "validator": validator, "ustake": amount, "bonusMultiplier": bonus}
+
 # Required for every chain we use
-def saveStakedUsers(
+def save_staked_users(
     input_file="exports/chain.json", output_file="staked/chain.json", 
     excludeCentralExchanges=True, doBonusesForGenesisValidators=True) -> dict:
     '''
@@ -181,80 +199,47 @@ def saveStakedUsers(
     }
 
 
-def yield_staked_values(stakedUsersInputFile="staked/chain.json"):
-    # with open(stakedUsersInputFile, 'r') as f:
-    #     for line in f:
-    #         line = line.strip()
-    #         delegator, valaddr, bonus, ustake = line.split(' ')
-    #         yield delegator, valaddr, bonus, ustake # ensure this matches up with save_staked_amounts() func
+def save_balances_to_file(input_file="exports/chain.json", output_file="balances/chain.json", 
+    getTotalSuppliesOf=["uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "gamm/pool/640"], 
+    ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True) -> dict:
+    '''
+    Saves every balance to the file provided it is in getTotalSuppliesOf.
+    If that is left as [], it will save All values to the balances folder.
+    You can then iterate through this file to get a users held denoms, such as pools or ibc channel
+        tokens if you so wish.
 
-    with open(stakedUsersInputFile, 'r') as f:
-        data = json.load(f) # Do we need to stream it?
+    Returns the JSON to the accounts as:
+    {
+        "address1": {"udenom": 100, "udenom2": 200, ...},
+        "address2": {...}
+    }
+    '''
 
-    for validator in data.keys():
-        delegators = data[validator]["delegators"]
-        for delegate in delegators.keys():
-            amount = float(delegators[delegate]["amount"])
-            bonus = float(delegators[delegate]["bonus"])
-            yield {"delegator": delegate, "validator": validator, "ustake": amount, "bonusMultiplier": bonus}
-
-
-def save_osmosis_balances(input_file, output_file, getTotalSuppliesOf=["uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "gamm/pool/640"], ignoreNonNativeIBCDenoms=True, ignoreEmptyAccounts=True) -> dict:
     print(f"Saving balances to {output_file}. {ignoreNonNativeIBCDenoms=} {ignoreEmptyAccounts=}")
-    # print(f"Will return a dict of the following total supplies: {getTotalSuppliesOf}")
 
-    # totalSupply = {str(denom).lower(): 0 for denom in getTotalSuppliesOf}
-    accounts = {}
+    accounts = {} # "address": {"udenom": amount, "gamm/pool/2": amount, ...}
 
     for idx, obj in stream_section(input_file, 'account_balances'):
-        address = str(obj['address'])
-        coins = obj['coins']
+        address, coins = obj['address'], obj['coins']
 
-        outputCoins = {}
+        if idx % 50_000 == 0: print(f"{idx} balances accounts processed")
+
+        tempCoins = {}
         for coin in coins:
-            denom = coin['denom']
-            amount = coin['amount']
+            denom, amount = coin['denom'], coin['amount']
 
             if ignoreNonNativeIBCDenoms and str(denom).startswith('ibc/'):
                 continue # ignore any non native ibc tokens held by the account
 
-            # if denom in totalSupply.keys():
-            #     totalSupply[denom] += float(amount) # uion, and 4 pools which are ion based. used in group 5
+            tempCoins[denom] = amount # {'uion': 1000000, 'uosmo': 1000000, etc...}
 
-            outputCoins[denom] = amount # {'uion': 1000000, 'uosmo': 1000000}
-
-        if idx % 50_000 == 0:
-            print(f"{idx} balances accounts processed")
-
-        if ignoreEmptyAccounts and len(outputCoins) == 0:
+        if ignoreEmptyAccounts and len(tempCoins) == 0:
             continue
 
-        accounts[address] = outputCoins
+        accounts[address] = tempCoins
         
     print(f"{idx} accounts processed from {input_file}")
     with open(output_file, 'w') as o:
         o.write(json.dumps(accounts))
     
     return accounts
-
-import src.utils as utils
-def get_total_supply__of_chains(files=[], denomsWeWant=[]):
-    temp_Total_Supply = {}
-
-    # Gets the total supply of ALL chains including LPs if in denomsWeWant=[] list
-    # Or uses a cached version if that is avaliable.
-    if os.path.isfile("final/total_supply.json"):
-        with open("final/total_supply.json", 'r') as f:
-            temp_Total_Supply = json.load(f)
-            print("Loaded TOTAL_SUPPLY from cached file")
-    else:
-        for fileName in files:
-            print("Getting total supply for chain: ", fileName)
-            for idx, supply in utils.stream_section(fileName, "total_supply"):
-                denom = supply['denom']
-                if denom in denomsWeWant: # denoms we want to save to file for tracking totalSupply
-                    temp_Total_Supply[denom] = supply['amount']    
-        with open("final/total_supply.json", 'w') as o:
-            o.write(json.dumps(temp_Total_Supply, indent=4))
-
-    return temp_Total_Supply # save this to main()
