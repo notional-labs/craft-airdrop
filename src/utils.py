@@ -76,6 +76,13 @@ def yield_staked_values_from_file(stakedUsersInputFile="output/staked/chain.json
     #         delegator, valaddr, bonus, ustake = line.split(' ')
     #         yield delegator, valaddr, bonus, ustake # ensure this matches up with save_staked_amounts() func
 
+    print(f"Loading staked values from {stakedUsersInputFile} (yield_staked_values_from_file)")
+
+    # check if file exists
+    if not os.path.isfile(stakedUsersInputFile):
+        print(f"utils.yield_staked_values_from_file(): {stakedUsersInputFile} does not exist")
+        return
+
     with open(stakedUsersInputFile, 'r') as f:
         data = json.load(f) # Do we need to stream it?
 
