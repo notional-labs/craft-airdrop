@@ -43,26 +43,46 @@ TOTAL_SUPPLY = {}
 TOTAL_STAKED_TOKENS = {}
 
 CHAINS = {
-    "cosmos": {
-        "export": "exports/cosmos_export.json",
-        "bonding_token": "uatom", 
-        "denoms": [] # other denoms we want to track the total supply of
-    },
-    "akash": {
-        "export": "exports/akash_export.json",
-        "bonding_token": "uakt",
+    # "cosmos": {
+    #     "export": "exports/cosmos_export.json",
+    #     "bonding_token": "uatom", 
+    #     "denoms": [] # other denoms we want to track the total supply of their balances
+    # },
+    # "akash": {
+    #     "export": "exports/akash_export.json",
+    #     "bonding_token": "uakt",
+    #     "denoms": []
+    # },
+    # "juno": {
+    #     "export": "exports/juno_export.json",
+    #     "bonding_token": "ujuno",
+    #     "denoms": []
+    # },
+    # "osmosis": {
+    #     "export": "exports/osmosis_export.json",
+    #     "bonding_token": "uosmo",
+    #     "denoms": ['uion', 'gamm/pool/1', 'gamm/pool/2', 'gamm/pool/151', 'gamm/pool/630', 'gamm/pool/640', 'gamm/pool/561']
+    # },
+    "comdex": {
+        "export": "exports/comdex_export.json",
+        "bonding_token": "ucmdx",
         "denoms": []
     },
-    "juno": {
-        "export": "exports/juno_export.json",
-        "bonding_token": "ujuno",
+    # "desmos": {
+    #     "export": "exports/desmos_export.json",
+    #     "bonding_token": "udsm",
+    #     "denoms": []
+    # },
+    "dig": {
+        "export": "exports/dig_export.json",
+        "bonding_token": "udig",
         "denoms": []
     },
-    "osmosis": {
-        "export": "exports/osmosis_export.json",
-        "bonding_token": "uosmo",
-        "denoms": ['uion', 'gamm/pool/1', 'gamm/pool/2', 'gamm/pool/151', 'gamm/pool/630', 'gamm/pool/640', 'gamm/pool/561']
-    }
+    # "sifchain": {
+    #     "export": "exports/sifchain_export.json",
+    #     "bonding_token": "urowan",
+    #     "denoms": []
+    # }
 }
 
 def main():
@@ -80,46 +100,46 @@ def main():
         Gets the total supply of ALL chains we want including LPs if it is in denomsWeWant
         If it is, it will just return that list
         ex: denomsWeWant = ["uosmo", "uion", "gamm/pool/2", "gamm/pool/630", "gamm/pool/151", "gamm/pool/640"]
-        Could be moved to utils?
         '''
         for chain in CHAINS.keys():
             print("Getting total supply for chain: ", chain)
-            exportFile = CHAINS[chain]["export"]
-            denomsWeWant = CHAINS[chain]["denoms"]
-            for idx, supply in utils.stream_section(exportFile, "total_supply"):
+            
+            myChain =  CHAINS[chain]
+
+            denomsWeWant = myChain["denoms"] # do we need to add "bonding_token" here too?
+            for idx, supply in utils.stream_section(myChain["export"], "total_supply"):
                 denom = supply['denom']
                 if denom in denomsWeWant:
-                    TOTAL_SUPPLY[denom] = supply['amount']    
+                    TOTAL_SUPPLY[denom] = supply['amount']   
+
         with open(fileName, 'w') as o:
             o.write(json.dumps(TOTAL_SUPPLY))
             
     with open(fileName, 'r') as f:
         TOTAL_SUPPLY = json.load(f)
     print(f"{TOTAL_SUPPLY=}")
-    # / End of total supply logic. Could be moved to another class
+    # / End of total supply logic.
 
 
-    # Save stated data in format: 
-    # chainAddr validatorAddr bonusMultiplier amountOfUTokenDelegated
+    # Save stated data for a given chain: 
     # This makes it easier for us to iterate & see + smaller than the full export
     for chain in CHAINS.keys():
         exportFile = CHAINS[chain]["export"]
-        stakedObject = utils.save_staked_users(input_file=exportFile, output_file=f"output/staked/{chain}.json")
-        
+        stakedObject = utils.save_staked_users(input_file=exportFile, output_file=f"output/staked/{chain}.json")        
         denom = CHAINS[chain]['bonding_token'] # chain osmosis -> uosmo
         totalStakeduDenom = stakedObject["total_staked"]
         print(f"Total Staked: {totalStakeduDenom} {denom} for chain: {chain}")
         TOTAL_STAKED_TOKENS[denom] = totalStakeduDenom
 
     # Runs: Group 1 Airdrop. Use this list since all chains are in CHAINS
-    for chain in ["akash", "cosmos", "juno", "osmosis"]:
-    # for chain in ["cosmos"]:
-        if chain not in CHAINS.keys(): print(f"\n\n[!]Did you remeber to uncomment/add {chain} to the CHAINS dict in main? exiting...\n\n"); exit(1)
-        group1_stakers_with_genesis_bonus(chain, TOTAL_STAKED_TOKENS, onlyToBondedValidators=True)
+    # for chain in ["akash", "cosmos", "juno", "osmosis"]:
+    # # for chain in ["cosmos"]:
+    #     if chain not in CHAINS.keys(): print(f"\n\n[!]Did you remeber to uncomment/add {chain} to the CHAINS dict in main? exiting...\n\n"); exit(1)
+    #     group1_stakers_with_genesis_bonus(chain, TOTAL_STAKED_TOKENS, onlyToBondedValidators=True)
     
 
     # Group 2
-    if True: # Change to True to run osmosis logic
+    if False: # Change to True to run osmosis logic
         # saves osmosis balances & does the pool airdrop calculation
         osmosisBalances = utils.save_balances_to_file(
             CHAINS['osmosis']['export'], 
@@ -132,6 +152,8 @@ def main():
         # group2_fairdrop_for_osmosis_pools(osmosisBalances, TOTAL_SUPPLY) # group 2
         group5_ION_holders_and_LPers()
     # group3_atom_relayers()
+
+    group6_genesis_set_validators()
 
 
 def group1_stakers_with_genesis_bonus(chainName: str, TOTAL_STAKED: dict, onlyToBondedValidators=True):
@@ -218,7 +240,6 @@ def group1_stakers_with_genesis_bonus(chainName: str, TOTAL_STAKED: dict, onlyTo
     with open(f"output/airdrop_info/group1_{chainName}.txt", 'w') as o:
         o.write(completionData + '\n' + output)
 
-
 # TODO: Merge group 5 ION LPs in here too? If so osmosis_get_all_LP_providers needs to add their pools as well
 def group2_fairdrop_for_osmosis_pools(osmosisBalances: dict, TOTAL_SUPPLY: dict):
     '''Group #2 - LPs for pool #1 and #561 (luna/osmo)'''
@@ -283,7 +304,6 @@ def group2_fairdrop_for_osmosis_pools(osmosisBalances: dict, TOTAL_SUPPLY: dict)
     for poolID in CRAFT_SUPPLY_FOR_POOLS.keys():
         print(f"{poolID} Given minus intended: {totalCraftGivenActual[poolID] - CRAFT_SUPPLY_FOR_POOLS[poolID]}")
 
-
 def group3_atom_relayers(): # cosmos
     '''Group 3: ATOM Relayers, we <3 you!'''
     print(f"Running Group 3 airdrop for atom relayers validators ")
@@ -296,7 +316,7 @@ def group3_atom_relayers(): # cosmos
 
     reset_craft_airdrop_temp_dict()
     # TODO: Redo this section for new values
-    for delegator, valaddr, bonus, ustake in utils.yield_staked_values(allCosmosStakers):
+    for delegator, valaddr, bonus, ustake in utils.yield_staked_values_from_file(allCosmosStakers):
         
         if valaddr not in ATOM_RELAYERS.keys():
             continue # wse only want people delegated to relayers here
@@ -314,8 +334,6 @@ def group3_atom_relayers(): # cosmos
 
     print(f"GROUP 3 airdrop - Atom Relayers - ALLOTMENT: {CRAFT_ALLOTMENTS}. ACTUAL: {ACTUAL_ALLOTMENT_GIVEN}")
 
-
-
 def group4_chandra_station_delegators():
     chandra_station = { # This is just copy pasted from GENESIS_VALIDATORS. Boost already applied in group1
         'akashvaloper1lxh0u07haj646pt9e0l2l4qc3d8htfx5kk698d': 1.2, 
@@ -329,7 +347,7 @@ def group4_chandra_station_delegators():
         'chihuahuavaloper1lxh0u07haj646pt9e0l2l4qc3d8htfx5pd5hur': 1.2,
     }
 
-    CHANDRA_CRAFT_ALLOTMENTS = {
+    CHANDRA_CRAFT_ALLOTMENTS = { # make sure to use the same keys as group6_genesis_set_validators()
         "akash": 250_000,
         "osmosis": 100_000,
         "juno": 100_000,
@@ -342,8 +360,7 @@ def group4_chandra_station_delegators():
     }
 
     reset_craft_airdrop_temp_dict()
-    
-    
+  
 def group5_ION_holders_and_LPers():
     '''Group 5: ION Holders and LPers'''
     print(f"Running Group 5 airdrop for ION holders and LPers ")
@@ -389,12 +406,77 @@ def group5_ION_holders_and_LPers():
     print(f"{ACTUAL_LP_ALLOTMENT=}")
     print(f"{ACTUAL_ION_ALLOTMENT=}")
     reset_craft_airdrop_temp_dict()
-
                 
 def group6_genesis_set_validators():
-    # loop through ALL exports & if they are delegated, they get a portion.
-    # So we have to calulate TOTAL SUPPLY of all chains for every snapshot. nice
-    pass
+    # Modified version of group1. Only bonus is given (so in group 1 it is 1.05 for example, here you only get 0.05)
+    # This means actual given will always be less than the total amount allocated?
+    print("\nRunning Group 6 airdrop for genesis set validators")
+
+     # do we reset this for every chain loop in here?
+
+    CRAFT_ALLOTMENTS = { # every other chain excluding the main 4. Use tghe same name as in chains.keys()
+        "comdex": 250_000,
+        # "stargaze": 500_000,
+        # "secret": 500_000,
+        # "regen": 500_000,
+        # "cronos": 500_000,
+        # "desmos": 500_000,
+        "dig": 10000,
+        # "emoney": 500_000,
+        # "gravity": 500_000,
+        # "chihuahua": 500_000,
+        # "persistance": 500_000,
+        # "sentinel": 500_000,
+    }
+
+    ACTUAL_ALLOTMENT_GIVEN = {}
+
+    for chain in CRAFT_ALLOTMENTS.keys():
+        reset_craft_airdrop_temp_dict()
+
+        if chain not in CHAINS.keys():
+            print(f"[!] Chain {chain} is not in CHAINS.keys(). Did you forget to uncomment it?\n")
+            continue
+
+        denom = CHAINS[chain]['bonding_token']
+        totalTokensStakedForChain = int(TOTAL_STAKED_TOKENS[denom])
+        print(f"Craft allotment for {chain} (${denom}): {CRAFT_ALLOTMENTS[chain]}")
+
+        # {"delegator": delegate, "validator": validator, "amount": amount, "bonusMultiplier": bonus}
+        for info in utils.yield_staked_values_from_file(f"output/staked/{chain}.json"):               
+            delegator = info['delegator']
+            valaddr = info['validator']     
+            amount = int(info['amount'])
+            bonusMultiplier = info['bonusMultiplier']
+
+            if str(delegator).startswith("0x"):
+                # if it is a "0x" address (dig) or gravity, we have to save their balance without craft conversion
+                # print(delegator + " address can not be converted since its an eth based address")
+                pass
+
+            if valaddr not in GENESIS_VALIDATORS.keys():
+                continue # we only want people delegated to genesis validators here
+
+            theirPercentOfAllStaked = float(amount) / totalTokensStakedForChain
+            # Allotment = theirCraft * bonus (where bonus is just the 1.05-1.00 = 0.05*theirCraft).        
+            theirAllotment = (theirPercentOfAllStaked * CRAFT_ALLOTMENTS[chain]) * (bonusMultiplier-1.0)
+            
+            # print(f"{delegator} %={theirPercentOfAllStaked} theirAllotment={theirAllotment} bonus={bonusMultiplier-1.0}")
+
+            if chain not in ACTUAL_ALLOTMENT_GIVEN:
+                ACTUAL_ALLOTMENT_GIVEN[chain] = 0
+            ACTUAL_ALLOTMENT_GIVEN[chain] += theirAllotment
+            
+            add_airdrop_to_craft_account(str(delegator), theirAllotment * 1_000_000)
+        
+        print(f"ACTUAL_ALLOTMENT_GIVEN={ACTUAL_ALLOTMENT_GIVEN[chain]}craft for {chain}")
+    
+        # Do it for each 1 or at the very end?
+        with open(f"final/group6_staked_{chain}.json", 'w') as o:
+            o.write(json.dumps(craft_airdrop_amounts))
+            print(f"Saved final final/group6_staked_{chain}.json")
+
+    print(f"Total allotments given for group 6: {ACTUAL_ALLOTMENT_GIVEN}")
 
 
 def group7_beta_participants():
