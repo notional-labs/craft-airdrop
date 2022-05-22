@@ -1,6 +1,6 @@
 # Too large of files
 __pycache__
 exports/*
+final/*
 output/*
-final
 /.vscode
